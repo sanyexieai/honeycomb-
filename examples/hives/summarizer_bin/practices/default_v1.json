@@ -1,0 +1,18 @@
+﻿{
+  "practice_id": "summarizer_bin_default_v1",
+  "hive_id": "summarizer_bin",
+  "capability": "summarize_text",
+  "context_selector": {
+    "task_type": "adhoc",
+    "topology_type": "singleton"
+  },
+  "recommended_impl": "impl_bin_v1",
+  "recommended_strategy": {
+    "mode": "binary_summarize"
+  },
+  "fitness": {
+    "score": 0.8,
+    "based_on_runs": 1
+  },
+  "status": "active"
+}

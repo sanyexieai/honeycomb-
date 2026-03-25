@@ -1,0 +1,75 @@
+{
+  "task_id": "task_34664",
+  "status": "completed",
+  "shared_context": {
+    "entry_path": "examples/hives/summarizer_bin",
+    "repository_root": "."
+  },
+  "sessions": [
+    {
+      "session_id": "sess_34664",
+      "task_id": "task_34664",
+      "hive_id": "summarizer_bin",
+      "selected_impl": "impl_bin_v1",
+      "selected_practice": null,
+      "lifecycle": "completed",
+      "input": {
+        "source_text": "persist this runtime to disk for later inspection"
+      },
+      "context": {
+        "entry_path": "examples/hives/summarizer_bin"
+      },
+      "overrides": {},
+      "local_state": {
+        "summary": "persist this runtime to disk for later inspection"
+      },
+      "artifacts": []
+    }
+  ],
+  "artifacts": [
+    {
+      "name": "task_spec",
+      "kind": "task_submission",
+      "path": null,
+      "value": {
+        "constraints": {
+          "budget": null,
+          "max_concurrency": null,
+          "timeout_ms": null
+        },
+        "context": {
+          "entry_path": "examples/hives/summarizer_bin",
+          "repository_root": "."
+        },
+        "input": {
+          "path": "examples/hives/summarizer_bin",
+          "task": "persist this runtime to disk for later inspection"
+        },
+        "task_id": "task_34664",
+        "task_type": "adhoc",
+        "topology": "singleton"
+      }
+    },
+    {
+      "name": "session_output_sess_34664",
+      "kind": "hive_output",
+      "path": null,
+      "value": {
+        "artifacts": [],
+        "hive_id": "summarizer_bin",
+        "impl_id": "impl_bin_v1",
+        "metrics": [
+          {
+            "name": "word_count",
+            "value": 8.0
+          }
+        ],
+        "payload": {
+          "summary": "persist this runtime to disk for later inspection"
+        },
+        "success": true,
+        "task_id": "task_34664"
+      }
+    }
+  ]
+}

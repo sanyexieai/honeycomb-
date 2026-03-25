@@ -1,0 +1,32 @@
+﻿{
+  "impl_id": "impl_bin_v1",
+  "hive_id": "summarizer_bin",
+  "version": "1.0.0",
+  "status": "active",
+  "executor": "process",
+  "entrypoint": "summarize",
+  "components": {
+    "prompt": "prompts/system.md",
+    "config": "config/runtime.json",
+    "script": null,
+    "binary": "bin/summarizer_worker.exe",
+    "assets": []
+  },
+  "strategy": {
+    "mode": "binary_summarize",
+    "tool_order": ["run_binary"]
+  },
+  "compatibility": {
+    "capability": "summarize_text",
+    "input_schema_version": "1.0.0",
+    "output_schema_version": "1.0.0"
+  },
+  "constraints": {
+    "max_latency_ms": 5000
+  },
+  "origin": {
+    "source": "manual",
+    "parent_impl": null,
+    "created_at": "2026-03-25T00:00:00Z"
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "practice_id": "summarizer_long_docs_v1",
+  "hive_id": "summarizer",
+  "capability": "summarize_text",
+  "context_selector": {
+    "task_type": "long_document",
+    "input_size": "large",
+    "topology_type": "pipeline"
+  },
+  "recommended_impl": "impl_v1",
+  "recommended_strategy": {
+    "mode": "extract_then_compress",
+    "temperature": 0.1,
+    "tool_order": ["run_script"]
+  },
+  "fitness": {
+    "score": 0.82,
+    "based_on_runs": 12
+  },
+  "status": "active"
+}
