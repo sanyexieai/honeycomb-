@@ -1,0 +1,9 @@
+{
+  "assignment_id": "assign-1",
+  "task_id": "task-xhs-demo",
+  "attempt_id": "attempt-1",
+  "worker_node_id": "worker-a",
+  "status": "completed",
+  "input": "draft-post",
+  "output": "posted"
+}

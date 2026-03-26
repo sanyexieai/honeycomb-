@@ -1,0 +1,13 @@
+{
+  "schema_version": "1.0.0",
+  "fitness_report": {
+    "implementation_id": "impl-xhs-v3",
+    "score": "0.95",
+    "summary": "record-builder-check"
+  },
+  "evolution_plan": {
+    "implementation_id": "impl-xhs-v3",
+    "decision": "observe",
+    "rationale": "default to observe until governance thresholds are wired"
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "schema_version": "1.0.0",
+  "task_spec": {
+    "task_id": "task-demo-flow-9",
+    "tenant_id": "tenant-local",
+    "namespace": "user/demo",
+    "goal": "state-machine-module-check"
+  },
+  "task_runtime": {
+    "task_id": "task-demo-flow-9",
+    "queen_node_id": "queen-demo",
+    "status": "completed"
+  }
+}

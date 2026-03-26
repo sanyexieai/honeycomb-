@@ -1,0 +1,14 @@
+{
+  "schema_version": "1.0.0",
+  "task_spec": {
+    "task_id": "task-demo-flow-15",
+    "tenant_id": "tenant-local",
+    "namespace": "user/demo",
+    "goal": "heartbeat-policy-check"
+  },
+  "task_runtime": {
+    "task_id": "task-demo-flow-15",
+    "queen_node_id": "queen-demo",
+    "status": "completed"
+  }
+}

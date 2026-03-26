@@ -1,0 +1,14 @@
+{
+  "schema_version": "1.0.0",
+  "task_spec": {
+    "task_id": "task-demo-flow-3",
+    "tenant_id": "tenant-local",
+    "namespace": "user/demo",
+    "goal": "end-to-end-demo"
+  },
+  "task_runtime": {
+    "task_id": "task-demo-flow-3",
+    "queen_node_id": "queen-demo",
+    "status": "queued"
+  }
+}

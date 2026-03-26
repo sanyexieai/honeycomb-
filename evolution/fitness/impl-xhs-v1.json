@@ -1,0 +1,13 @@
+{
+  "schema_version": "1.0.0",
+  "fitness_report": {
+    "implementation_id": "impl-xhs-v1",
+    "score": "0.91",
+    "summary": "stable-posting-flow"
+  },
+  "evolution_plan": {
+    "implementation_id": "impl-xhs-v1",
+    "decision": "observe",
+    "rationale": "default to observe until governance thresholds are wired"
+  }
+}

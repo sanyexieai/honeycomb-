@@ -1,0 +1,9 @@
+{
+  "assignment_id": "assign-demo-9",
+  "task_id": "task-demo-flow-9",
+  "attempt_id": "attempt-1",
+  "worker_node_id": "worker-demo",
+  "status": "completed",
+  "input": "draft-post",
+  "output": "posted"
+}

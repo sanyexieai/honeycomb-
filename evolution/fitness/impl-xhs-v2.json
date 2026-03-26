@@ -1,0 +1,13 @@
+{
+  "schema_version": "1.0.0",
+  "fitness_report": {
+    "implementation_id": "impl-xhs-v2",
+    "score": "0.93",
+    "summary": "governance-split-check"
+  },
+  "evolution_plan": {
+    "implementation_id": "impl-xhs-v2",
+    "decision": "observe",
+    "rationale": "default to observe until governance thresholds are wired"
+  }
+}

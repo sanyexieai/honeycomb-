@@ -1,0 +1,14 @@
+{
+  "schema_version": "1.0.0",
+  "task_spec": {
+    "task_id": "task-xhs-demo",
+    "tenant_id": "tenant-local",
+    "namespace": "user/demo",
+    "goal": "draft-post"
+  },
+  "task_runtime": {
+    "task_id": "task-xhs-demo",
+    "queen_node_id": "queen-a",
+    "status": "queued"
+  }
+}

@@ -64,6 +64,12 @@
 - `specs/worker-materialization-and-lifecycle.md`
 - `specs/debug-and-inspection-tools.md`
 - `specs/evolution-registry-integration.md`
+- `specs/binary-and-deployment-layout.md`
+- `specs/execution-code-module-mapping.md`
+- `specs/evolution-code-module-mapping.md`
+- `specs/execution-state-machines-and-idempotency.md`
+- `specs/storage-schema-versioning-and-migration.md`
+- `specs/manual-intervention-and-approval-workflow.md`
 - `specs/task-templates-and-composition.md`
 - `specs/ecosystem-composite-hives.md`
 - `specs/resident-hive-model.md`

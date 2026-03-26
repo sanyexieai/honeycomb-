@@ -1,0 +1,9 @@
+{"event_id":"event-task-xhs-demo-task-submitted","event_type":"task_submitted","task_id":"task-xhs-demo","timestamp":"1970-01-01T00:00:00Z","payload":"goal=draft-post"}
+{"event_id":"event-task-xhs-demo-task-submitted","event_type":"task_submitted","task_id":"task-xhs-demo","timestamp":"1970-01-01T00:00:00Z","payload":"goal=draft-post"}
+{"event_id":"event-task-xhs-demo-task-submitted","event_type":"task_submitted","task_id":"task-xhs-demo","timestamp":"1970-01-01T00:00:00Z","payload":"goal=draft-post"}
+{"event_id":"msg-hello-worker-a","event_type":"hello_received","task_id":"task-xhs-demo","timestamp":"1970-01-01T00:00:00Z","payload":"worker=worker-a queen=queen-a"}
+{"event_id":"msg-hello-ack-worker-a","event_type":"hello_accepted","task_id":"task-xhs-demo","timestamp":"1970-01-01T00:00:01Z","payload":"accepted"}
+{"event_id":"msg-heartbeat-worker-a","event_type":"heartbeat_received","task_id":"task-xhs-demo","timestamp":"1970-01-01T00:00:02Z","payload":"worker=worker-a state=idle"}
+{"event_id":"msg-shutdown-worker-a","event_type":"shutdown_sent","task_id":"task-xhs-demo","timestamp":"1970-01-01T00:00:03Z","payload":"graceful-stop"}
+{"event_id":"event-assign-1-assigned","event_type":"assignment_assigned","task_id":"task-xhs-demo","timestamp":"1970-01-01T00:00:04Z","payload":"worker=worker-a attempt_id=attempt-1"}
+{"event_id":"event-assign-1-result","event_type":"task_result","task_id":"task-xhs-demo","timestamp":"1970-01-01T00:00:05Z","payload":"worker=worker-a status=completed"}
