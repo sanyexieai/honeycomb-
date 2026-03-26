@@ -1,41 +1,78 @@
-﻿# Honeycomb Design Docs
+# Honeycomb 设计文档
 
-本文档集记录 Honeycomb 第一版核心设计。
+这组文档用于定义 Honeycomb 当前阶段的系统边界、运行模型和后续实现方向。
 
-Honeycomb 的目标不是单一 agent，而是一个由多个最小单元协作组成的系统：
+当前总原则：
 
-- `Skill` 是静态定义载体，可以是单个 Markdown 或目录
-- `Hive` 是 Skill 的运行时实例，是系统中的最小执行单元
-- `System` 是多个 Hive 的协作网络
+- 可以推翻旧方案，不被已有原型绑定
+- 单任务内允许蜂后主导
+- 系统级不设唯一全局中心
+- 执行面与进化面拆成两个二进制
+- 角色、任务、技能、进化必须边界清晰
+- 逻辑隔离和物理隔离要同步考虑
 
-核心原则：
+两个二进制：
 
-- 能力契约固定
-- 具体实现可进化
-- 最佳实践按上下文竞争
-- 每个任务维护自己的运行时
-- 进化过程可评估、可追踪、可回滚
-- 多 Hive 协作通过统一协议完成
+- `honeycomb`：执行面，负责蜂后、工蜂、任务运行、协议通信、任务状态与产物
+- `honeycomb-evolution`：进化面，负责评分、谱系、晋升、淘汰、最佳实践沉淀
 
-文档结构：
+建议优先阅读顺序：
 
-- `architecture.md`：总体架构与概念模型
-- `specs/hive-spec.md`：固定能力契约规范
-- `specs/implementation-spec.md`：实现体与基因规范
-- `specs/practice-profile.md`：跨任务最佳实践规范
-- `specs/process-executor.md`：主控与外部脚本/二进制执行协议
-- `specs/task-scheduler.md`：任务模型与并行调度规范
-- `specs/task-runtime.md`：任务运行时与会话模型
-- `specs/runtime-and-traits.md`：Rust 核心结构体与 trait 草案
+1. `architecture.md`
+2. `specs/design-status.md`
+3. `specs/domain-boundaries.md`
+4. `specs/execution-vs-evolution-plane.md`
+5. `specs/node-identity.md`
+6. `specs/queen-worker-model.md`
+7. `specs/queen-worker-protocol.md`
+8. `specs/task-topology.md`
+9. `specs/runtime-event-schema.md`
+10. `specs/runtime-storage-layout.md`
 
-建议实现顺序：
+当前重点文档：
 
-1. `hive-core`
-2. `hive-spec`
-3. `hive-practice`
-4. `hive-store`
-5. `hive-runtime`
-6. `hive-scheduler`
-7. `hive-executors`
-8. `hive-orchestrator`
-9. `hive-evolution`
+- `specs/task-runtime.md`
+- `specs/task-scheduler.md`
+- `specs/multi-user-model.md`
+- `specs/multi-tenant-model.md`
+- `specs/permission-and-visibility.md`
+- `specs/resource-control-and-quotas.md`
+- `specs/failure-recovery.md`
+- `specs/audit-and-trace.md`
+- `specs/execution-evolution-data-examples.md`
+
+文档目标不是一次写死所有实现细节，而是先把结构位置、数据边界和后续扩展空间定稳，避免后续因为边界不清而整体返工。
+
+## 扩展文档索引（按主题）
+
+安全与可观测：
+
+- `specs/security-and-trust-model.md`
+- `specs/observability-and-replay.md`
+
+技能与生态：
+
+- `specs/skill-registry-and-marketplace.md`
+- `specs/evolution-governance.md`
+- `specs/skill-package-format.md`
+- `specs/import-export-workflow.md`
+- `specs/remote-skill-registry-and-distribution.md`
+- `specs/template-practice-integration.md`
+
+运行时与模板：
+
+- `specs/worker-materialization-and-lifecycle.md`
+- `specs/debug-and-inspection-tools.md`
+- `specs/evolution-registry-integration.md`
+- `specs/task-templates-and-composition.md`
+- `specs/ecosystem-composite-hives.md`
+- `specs/resident-hive-model.md`
+
+调度与路线图：
+
+- `specs/trigger-and-schedule-model.md`
+- `specs/schedule-state-and-history.md`
+- `specs/execution-plane-implementation-roadmap.md`
+- `specs/evolution-plane-implementation-roadmap.md`
+
+未列入上文优先顺序但已存在的规格：`specs/runtime-and-traits.md`、`specs/process-executor.md`（与运行时/执行器实现细节相关）。

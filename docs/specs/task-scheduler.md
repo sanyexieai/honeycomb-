@@ -1,108 +1,65 @@
-﻿# Task And Scheduler Spec
+﻿# 任务与调度器规范
 
-本文档定义任务模型和并行调度的基本方向。
+## 1. 目标
 
-## 1. 核心原则
+本规范定义任务如何被接收、排队、推进和完成。
 
-- 二进制尽量稳定
-- 任务是运行时对象，不是编译期对象
-- 并行由主控统一调度
-- 任务局部状态隔离，长期经验共享
+## 2. 任务层级并行
 
-## 2. TaskSpec
+建议区分三层并行：
 
-`TaskSpec` 表示一个提交给 Honeycomb 的任务。
+### 2.1 任务级并行
 
-建议字段：
+多个任务同时运行。
 
-- `task_id`
-- `task_type`
-- `input`
-- `context`
-- `topology`
-- `constraints`
+### 2.2 蜂巢级并行
 
-## 3. TaskRuntime
+同一任务中多个派发单元或多个蜂巢会话并行。
 
-`TaskRuntime` 表示任务当前运行态。
+### 2.3 实现体竞争并行
 
-建议字段：
+同一能力的多个实现体为了评估而并行试跑。
 
-- `task_id`
-- `status`
-- `shared_context`
-- `sessions`
-- `artifacts`
+这第三层默认不应成为业务主路径。
 
-## 4. TaskHiveSession
+## 3. 调度器职责
 
-每个任务中的每次 Hive 调用都应创建独立 session：
+调度器负责：
 
-- 不与其他任务共享局部状态
-- 可以引用同一 Hive 的长期实践和实现池
-- 可以在当前任务内进行参数覆盖
+- 接收任务
+- 检查配额与资源限制
+- 维护任务状态
+- 推进 ready 派发单元
+- 记录中间状态
+- 在失败时触发恢复策略
 
-## 5. 并行层级
+## 4. 任务状态建议
 
-### Task-Level Parallelism
+建议最少状态：
 
-多个任务同时执行。
+- `queued`
+- `running`
+- `completed`
+- `failed`
+- `cancelled`
+- `interrupted`
 
-### Hive-Level Parallelism
+## 5. 调度原则
 
-单任务内部多个 Hive session 并行。
+- 先检查租户与命名空间边界
+- 再检查资源与配额
+- 再推进拓扑 ready 节点
+- 优先复用空闲工蜂
+- 所有调度决策都要可追踪
 
-### Implementation-Level Competition
+## 6. 第一版建议
 
-同一能力的多个实现并行试跑，主要用于评估和进化。
+第一版先做到：
 
-## 6. 调度建议
+- 单机内任务运行
+- 任务级并行
+- 基于拓扑的 ready 推进
+- 配额拒绝或允许
+- 失败时有限重试
 
-推荐模型：
-
-- `TaskSpec -> TaskGraph -> Ready Queue -> Executor -> Event -> State Update`
-
-含义：
-
-- 任务被展开为拓扑图
-- 依赖满足的节点进入 ready queue
-- executor 执行 session
-- 完成后写回事件和状态
-- scheduler 继续推进后续节点
-
-## 7. 推荐的第一版范围
-
-第一版建议重点支持：
-
-- `Singleton`
-- `Pipeline`
-- `Graph`
-
-暂不重点支持：
-
-- 完全自治 swarm
-- 去中心化协商式调度
-
-## 8. 隔离规则
-
-建议至少保证：
-
-1. 同一个 `TaskHiveSession` 只能被一个执行器占用
-2. 同一个任务的局部状态不能被别的任务直接写
-3. 长期实践更新不能在任务执行中直接无锁覆盖
-
-## 9. 共享与隔离
-
-共享：
-
-- Hive 能力定义
-- Implementation 池
-- Practice Profile
-- Evaluation 历史
-
-隔离：
-
-- 任务输入
-- 当前任务上下文
-- 本次 session 的临时状态
-- 本次中间产物
+更复杂的公平调度和预测调度后续再做。

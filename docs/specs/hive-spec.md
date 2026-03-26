@@ -1,211 +1,119 @@
-# Hive Spec
+﻿# 蜂巢规范
 
-`hive.md` 是固定能力契约。它描述一个 Hive 是什么，而不是描述某次具体如何执行。
+## 1. 目标
 
-## 1. 设计目标
+本规范定义一个技能或蜂巢的稳定能力契约。
 
-`hive.md` 用来保证：
+## 2. 建议结构
 
-- Hive 的能力边界稳定
-- 其他 Hive 能稳定依赖它
-- 实现体的替换不会破坏系统协议
+建议一个蜂巢定义至少包含：
 
-## 2. 建议格式
+- 基本身份信息
+- 能力名称
+- 输入输出协议
+- 执行约束
+- 状态槽位
+- 依赖能力
+- 可用工具
+- 评估方式
+- 演化策略
 
-推荐采用：
+## 3. 推荐写法
 
-- YAML frontmatter 放结构化字段
-- 正文放规则、成功标准、协作说明、示例
+建议使用两层结构：
 
-## 3. 最小示例
+- Frontmatter：放结构化字段
+- 正文：放角色说明、规则、协作方式、成功标准、失败模式
+
+## 4. 最小示例
 
 ```md
 ---
 id: summarizer
-name: Summarizer Hive
+name: 文本摘要蜂巢
 version: 0.1.0
-kind: hive
 capability: summarize_text
-description: 将输入文本压缩为结构化摘要
-
 interface:
   input_schema: interface/input.schema.json
   output_schema: interface/output.schema.json
-
 execution:
-  executor: composite
-  entrypoint: summarize
+  mode: assignment
   timeout_ms: 30000
-  max_steps: 6
-
 state:
   persistent: true
   slots:
     - current_task
     - last_result
     - retry_count
-
 dependencies:
-  required_capabilities:
-    - retrieve_context
-  optional_capabilities:
-    - rank_relevance
-
+  required_capabilities: []
 tools:
   allowed:
     - read_file
     - write_file
-    - run_script
-    - run_binary
-
 evaluation:
   metrics:
     - accuracy
     - brevity
     - format_compliance
-    - latency
-    - downstream_acceptance
-  fitness_formula: "0.35*accuracy + 0.2*brevity + 0.2*format_compliance + 0.15*downstream_acceptance - 0.1*latency"
-
 evolution:
   implementation_mutable: true
   interface_mutable: false
-  split_allowed: true
-  recommendable: true
 ---
 
-# Purpose
-负责把原始文本整理为短摘要或结构化摘要。
+# 目的
+负责把输入文本整理为可消费的摘要结果。
 
-# Rules
-- 不得编造输入中不存在的信息
+# 规则
+- 不得编造事实
 - 输出必须符合 output schema
-- 缺少必要上下文时返回 clarification_needed
 
-# Collaboration
-- 当输入过长时，可以调用具备 retrieve_context 能力的 hive
-- 当存在多个候选摘要时，可以调用具备 rank_relevance 能力的 hive
+# 协作
+- 必要时可调用检索类能力补充上下文
 
-# Success Criteria
-- 事实保真
-- 长度可控
-- 结构稳定
-- 可被下游 hive 直接消费
+# 成功标准
+- 摘要准确
+- 格式稳定
+- 可被下游蜂巢直接消费
 ```
 
-## 4. 字段定义
+## 5. 字段表
 
-### 顶层字段
+| 字段 | 必填 | 类型 | 含义 | 是否长期稳定 |
+| --- | --- | --- | --- | --- |
+| `id` | 是 | string | 蜂巢唯一标识 | 是 |
+| `name` | 是 | string | 人类可读名称 | 否 |
+| `version` | 是 | string | 契约版本 | 是 |
+| `capability` | 是 | string | 能力名称 | 是 |
+| `interface` | 是 | object | 输入输出协议定义 | 是 |
+| `execution` | 是 | object | 执行约束与模式 | 否 |
+| `state` | 否 | object | 状态槽位与持久化定义 | 否 |
+| `dependencies` | 否 | object | 依赖能力声明 | 否 |
+| `tools` | 否 | object | 可用工具范围 | 否 |
+| `evaluation` | 是 | object | 评估指标 | 是 |
+| `evolution` | 是 | object | 演化策略边界 | 是 |
 
-- `id`
-  - Hive 的稳定标识
-- `name`
-  - 人类可读名称
-- `version`
-  - 契约版本
-- `kind`
-  - 当前建议固定为 `hive`
-- `capability`
-  - 该 Hive 对外暴露的稳定能力名
-- `description`
-  - 简要描述
+## 6. 关键原则
 
-### `interface`
+- 能力契约长期稳定
+- 任务运行时不直接改动蜂巢定义
+- 长期变更由进化面或治理流程推动
+- 能力与具体实现体分离
 
-- `input_schema`
-  - 输入 JSON Schema 路径
-- `output_schema`
-  - 输出 JSON Schema 路径
+## 7. 正文建议章节
 
-### `execution`
+正文建议统一约定：
 
-- `executor`
-  - 推荐值：
-    - `llm`
-    - `deterministic`
-    - `composite`
-    - `process`
-- `entrypoint`
-  - 执行入口名称
-- `timeout_ms`
-  - 超时限制
-- `max_steps`
-  - 最大内部执行步数
+- `目的`
+- `规则`
+- `协作`
+- `成功标准`
+- `失败模式`
+- `示例`
 
-### `state`
+## 8. 与其他文档的关系
 
-- `persistent`
-  - 是否持久化运行状态
-- `slots`
-  - 预定义状态槽位名称
-
-### `dependencies`
-
-- `required_capabilities`
-  - 运行此 Hive 必须能调用的能力
-- `optional_capabilities`
-  - 可选依赖能力
-
-### `tools`
-
-- `allowed`
-  - 允许使用的工具标识
-
-### `evaluation`
-
-- `metrics`
-  - 评估指标列表
-- `fitness_formula`
-  - 综合评分公式
-
-### `evolution`
-
-- `implementation_mutable`
-  - 是否允许变更实现体
-- `interface_mutable`
-  - 是否允许变更输入输出协议
-- `split_allowed`
-  - 是否允许分裂出同能力子实现
-- `recommendable`
-  - 是否允许被推荐给其他 Hive
-
-## 5. 正文 Section 约定
-
-建议正文支持以下 section：
-
-- `# Purpose`
-- `# Rules`
-- `# Collaboration`
-- `# Success Criteria`
-- `# Failure Modes`
-- `# Examples`
-
-解析器可以先做宽松支持，不强制要求所有 section 都存在。
-
-## 6. 约束规则
-
-### 固定项
-
-以下内容原则上不允许自动演化修改：
-
-- `capability`
-- 输入输出 schema 的语义
-- 对外行为契约
-
-### 可演化项
-
-以下内容可以由实现体承载并演化：
-
-- Prompt
-- 工具调用顺序
-- 执行策略参数
-- 脚本或二进制版本
-
-## 7. 兼容性要求
-
-任意新的 Implementation 必须满足：
-
-- 仍属于同一个 `capability`
-- 输入输出 schema 版本兼容
-- 行为约束不与 `Rules` 冲突
-- 可被既有下游 Hive 消费
+- 实现体与基因见 `implementation-spec.md`
+- 最佳实践见 `practice-profile.md`
+- 评分与晋升见 `fitness-and-promotion.md`
+- 数据落地样例见 `execution-evolution-data-examples.md`

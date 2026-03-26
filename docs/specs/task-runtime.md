@@ -1,125 +1,75 @@
-﻿# Task Runtime Spec
+﻿# 任务运行时规范
 
-`Task Runtime` 用于描述某个 Hive 在一个具体任务中的临时运行态。
+任务运行时描述某个任务在一次具体执行中的临时状态。
 
-它的存在是为了将：
+## 1. 任务运行时解决什么问题
 
-- Hive 的长期状态
-- 某次任务的短期运行时
+它负责描述：
 
-明确隔离。
+- 当前任务状态
+- 当前参与节点
+- 当前派发单元
+- 当前上下文
+- 当前产物
+- 当前局部失败与重试信息
 
-## 1. 设计目标
+## 2. 任务运行时不是长期定义
 
-一个 Hive 可能同时被多个任务复用，因此：
+任务运行时不负责：
 
-- 不能把每次任务的局部状态直接写回 Hive 长期状态
-- 不能让任务内临时参数覆盖全局默认行为
-- 必须为每次任务创建独立的运行时 session
+- 定义技能能力
+- 定义长期默认实现
+- 定义长期谱系与晋升
 
-## 2. 核心原则
+这些属于技能或进化面。
 
-- 长期能力归 Hive
-- 长期经验归 Practice Profile
-- 当前任务状态归 Task Runtime Session
+## 3. 建议对象
 
-## 3. 最小示例
+### 3.1 任务规格
 
-```json
-{
-  "session_id": "sess_001",
-  "task_id": "task_123",
-  "hive_id": "summarizer",
-  "selected_impl": "impl_v2_b",
-  "selected_practice": "summarizer_long_docs_v1",
-  "lifecycle": "Running",
-  "input": {
-    "source_text": "..."
-  },
-  "context": {
-    "task_type": "long_document",
-    "domain": "general"
-  },
-  "overrides": {
-    "temperature": 0.0
-  },
-  "local_state": {
-    "step_count": 2,
-    "intermediate_summary": "..."
-  }
-}
-```
+描述任务输入、目标、拓扑、约束。
 
-## 4. 字段说明
+### 3.2 任务运行时
+
+描述任务当前生命周期、节点状态、产物和局部状态。
+
+### 3.3 任务蜂巢会话
+
+描述某个蜂巢在当前任务中的一次实际参与情况。
+
+## 4. 建议字段
+
+任务运行时建议至少包含：
+
+- `task_id`
+- `tenant_id`
+- `namespace`
+- `owner_user_id`
+- `owner_team_id`
+- `status`
+- `topology`
+- `queen_node_id`
+- `sessions`
+- `artifacts`
+- `created_at`
+- `updated_at`
+
+## 5. 会话字段建议
+
+任务蜂巢会话建议包含：
 
 - `session_id`
-  - 任务内该 Hive 实例的唯一标识
-- `task_id`
-  - 所属任务
 - `hive_id`
-  - 使用的 Hive
-- `selected_impl`
-  - 本次选中的实现
-- `selected_practice`
-  - 本次匹配到的 Practice Profile
-- `lifecycle`
-  - 当前任务中的生命周期状态
-- `input`
-  - 当前任务输入
-- `context`
-  - 当前任务上下文
-- `overrides`
-  - 本次任务覆盖参数
+- `capability`
+- `worker_node_id`
+- `assignment_ids`
+- `status`
 - `local_state`
-  - 本次任务内部临时状态
+- `artifacts`
 
-## 5. 任务内覆盖
+## 6. 关键原则
 
-`Task Runtime Session` 允许做局部覆盖，例如：
-
-- 模型参数覆盖
-- 工具顺序覆盖
-- 超时限制覆盖
-- 预算限制覆盖
-
-这些覆盖只在当前任务内有效，不应直接写回：
-
-- `ImplementationSpec`
-- `PracticeProfile`
-- `HiveSpec`
-
-## 6. 生命周期
-
-建议状态：
-
-- `Created`
-- `Ready`
-- `Running`
-- `WaitingInput`
-- `WaitingDependency`
-- `Completed`
-- `Failed`
-
-## 7. 与长期状态的边界
-
-建议：
-
-- `Hive` 保存长期能力、实现池、进化历史
-- `PracticeProfile` 保存跨任务经验
-- `Task Runtime Session` 保存本次任务上下文和临时状态
-
-任务结束后：
-
-- 可将执行结果、评估指标、产物摘要回写长期记录
-- 不应直接把临时局部状态原样提升为长期默认值
-
-## 8. 推荐流程
-
-建议的任务启动流程：
-
-1. 创建 `TaskSpec`
-2. 根据任务上下文匹配 `PracticeProfile`
-3. 选出 `selected_impl`
-4. 创建 `TaskHiveSession`
-5. 执行并记录本次评估
-6. 将评估结果用于更新实现排名和最佳实践库
+- 任务运行时只属于本次任务
+- 任务结束后可以归档，但不应污染长期定义
+- 任务运行时允许局部覆盖参数和上下文
+- 这些覆盖不应被直接视为长期最佳实践
