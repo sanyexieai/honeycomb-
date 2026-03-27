@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use super::{apply_assignment_status_transition, TransitionOutcome};
+use super::{TransitionOutcome, apply_assignment_status_transition};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -39,6 +39,12 @@ pub struct Assignment {
     pub status: AssignmentStatus,
     pub input: String,
     pub output: Option<String>,
+    #[serde(default)]
+    pub implementation_ref: Option<String>,
+    #[serde(default)]
+    pub skill_refs: Vec<String>,
+    #[serde(default)]
+    pub tool_refs: Vec<String>,
 }
 
 impl Assignment {
@@ -48,6 +54,9 @@ impl Assignment {
         attempt_id: String,
         worker_node_id: String,
         input: String,
+        implementation_ref: Option<String>,
+        skill_refs: Vec<String>,
+        tool_refs: Vec<String>,
     ) -> Self {
         Self {
             assignment_id,
@@ -57,6 +66,9 @@ impl Assignment {
             status: AssignmentStatus::Assigned,
             input,
             output: None,
+            implementation_ref,
+            skill_refs,
+            tool_refs,
         }
     }
 

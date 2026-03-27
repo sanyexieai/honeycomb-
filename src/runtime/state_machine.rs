@@ -40,10 +40,7 @@ pub fn apply_task_status_transition(
     }
 }
 
-pub fn can_transition_assignment_status(
-    current: AssignmentStatus,
-    next: AssignmentStatus,
-) -> bool {
+pub fn can_transition_assignment_status(current: AssignmentStatus, next: AssignmentStatus) -> bool {
     current == next
         || matches!(
             (current, next),
@@ -73,5 +70,64 @@ pub fn apply_assignment_status_transition(
         Ok(TransitionOutcome::Applied)
     } else {
         Err(ASSIGNMENT_STATUS_TRANSITION_ERR)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn task_transition_applies_for_valid_path() {
+        let mut status = TaskStatus::Queued;
+        let outcome = apply_task_status_transition(&mut status, TaskStatus::Running);
+
+        assert_eq!(outcome, Ok(TransitionOutcome::Applied));
+        assert_eq!(status, TaskStatus::Running);
+    }
+
+    #[test]
+    fn task_transition_is_noop_for_same_status() {
+        let mut status = TaskStatus::Completed;
+        let outcome = apply_task_status_transition(&mut status, TaskStatus::Completed);
+
+        assert_eq!(outcome, Ok(TransitionOutcome::NoOp));
+        assert_eq!(status, TaskStatus::Completed);
+    }
+
+    #[test]
+    fn task_transition_rejects_invalid_path() {
+        let mut status = TaskStatus::Completed;
+        let outcome = apply_task_status_transition(&mut status, TaskStatus::Running);
+
+        assert_eq!(outcome, Err(TASK_STATUS_TRANSITION_ERR));
+        assert_eq!(status, TaskStatus::Completed);
+    }
+
+    #[test]
+    fn assignment_transition_applies_for_valid_path() {
+        let mut status = AssignmentStatus::Assigned;
+        let outcome = apply_assignment_status_transition(&mut status, AssignmentStatus::Running);
+
+        assert_eq!(outcome, Ok(TransitionOutcome::Applied));
+        assert_eq!(status, AssignmentStatus::Running);
+    }
+
+    #[test]
+    fn assignment_transition_is_noop_for_same_status() {
+        let mut status = AssignmentStatus::Completed;
+        let outcome = apply_assignment_status_transition(&mut status, AssignmentStatus::Completed);
+
+        assert_eq!(outcome, Ok(TransitionOutcome::NoOp));
+        assert_eq!(status, AssignmentStatus::Completed);
+    }
+
+    #[test]
+    fn assignment_transition_rejects_invalid_path() {
+        let mut status = AssignmentStatus::Completed;
+        let outcome = apply_assignment_status_transition(&mut status, AssignmentStatus::Assigned);
+
+        assert_eq!(outcome, Err(ASSIGNMENT_STATUS_TRANSITION_ERR));
+        assert_eq!(status, AssignmentStatus::Completed);
     }
 }

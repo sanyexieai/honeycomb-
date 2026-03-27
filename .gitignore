@@ -1,3 +1,8 @@
 ﻿target/*
 .rustc_info.json
 .honeycomb/
+evolution/**
+runtime/*
+skills/*
+tools/*
+registry/*

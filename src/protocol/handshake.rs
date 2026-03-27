@@ -1,8 +1,7 @@
-use crate::core::{current_timestamp, PROTOCOL_VERSION};
+use crate::core::{PROTOCOL_VERSION, current_timestamp};
 
 use super::message::{
-    HeartbeatPayload, HelloAckPayload, HelloPayload, MessageKind, ProtocolEnvelope,
-    ShutdownPayload,
+    HeartbeatPayload, HelloAckPayload, HelloPayload, MessageKind, ProtocolEnvelope, ShutdownPayload,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -184,4 +183,79 @@ pub fn simulate_shutdown(
     };
 
     ShutdownTranscript { shutdown, payload }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn demo_endpoint() -> QueenEndpoint {
+        QueenEndpoint::new(
+            "queen-a".to_owned(),
+            "task-1".to_owned(),
+            "tenant-1".to_owned(),
+            "user/demo".to_owned(),
+            "token-1".to_owned(),
+        )
+    }
+
+    #[test]
+    fn handshake_accepts_matching_context() {
+        let endpoint = demo_endpoint();
+
+        let transcript = simulate_handshake(
+            &endpoint,
+            "worker-a",
+            "tenant-1",
+            "user/demo",
+            "task-1",
+            "queen-a",
+            "token-1",
+        );
+
+        assert!(transcript.ack_payload.accepted);
+        assert_eq!(transcript.ack_payload.reason, "accepted");
+        assert_eq!(transcript.hello.kind, MessageKind::Hello);
+        assert_eq!(transcript.ack.kind, MessageKind::HelloAck);
+    }
+
+    #[test]
+    fn handshake_rejects_invalid_token() {
+        let endpoint = demo_endpoint();
+
+        let transcript = simulate_handshake(
+            &endpoint,
+            "worker-a",
+            "tenant-1",
+            "user/demo",
+            "task-1",
+            "queen-a",
+            "wrong-token",
+        );
+
+        assert!(!transcript.ack_payload.accepted);
+        assert_eq!(transcript.ack_payload.reason, "queen_token_invalid");
+    }
+
+    #[test]
+    fn heartbeat_uses_endpoint_identity() {
+        let endpoint = demo_endpoint();
+
+        let transcript = simulate_heartbeat(&endpoint, "worker-a", "idle");
+
+        assert_eq!(transcript.heartbeat.kind, MessageKind::Heartbeat);
+        assert_eq!(transcript.heartbeat.to, "queen-a");
+        assert_eq!(transcript.payload.state, "idle");
+    }
+
+    #[test]
+    fn shutdown_targets_worker_with_reason() {
+        let endpoint = demo_endpoint();
+
+        let transcript = simulate_shutdown(&endpoint, "worker-a", "manual-stop");
+
+        assert_eq!(transcript.shutdown.kind, MessageKind::Shutdown);
+        assert_eq!(transcript.shutdown.to, "worker-a");
+        assert_eq!(transcript.payload.reason, "manual-stop");
+    }
 }

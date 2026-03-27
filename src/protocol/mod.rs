@@ -2,8 +2,8 @@ mod handshake;
 mod message;
 
 pub use handshake::{
-    simulate_handshake, simulate_heartbeat, simulate_shutdown, HandshakeTranscript,
-    HeartbeatTranscript, QueenEndpoint, ShutdownTranscript,
+    HandshakeTranscript, HeartbeatTranscript, QueenEndpoint, ShutdownTranscript,
+    simulate_handshake, simulate_heartbeat, simulate_shutdown,
 };
 pub use message::{
     HeartbeatPayload, HelloAckPayload, HelloPayload, MessageKind, ProtocolEnvelope,

@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use super::{apply_task_status_transition, TransitionOutcome};
+use super::{TransitionOutcome, apply_task_status_transition};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -32,15 +32,32 @@ pub struct TaskSpec {
     pub tenant_id: String,
     pub namespace: String,
     pub goal: String,
+    #[serde(default)]
+    pub implementation_ref: Option<String>,
+    #[serde(default)]
+    pub skill_refs: Vec<String>,
+    #[serde(default)]
+    pub tool_refs: Vec<String>,
 }
 
 impl TaskSpec {
-    pub fn new(task_id: String, tenant_id: String, namespace: String, goal: String) -> Self {
+    pub fn new(
+        task_id: String,
+        tenant_id: String,
+        namespace: String,
+        goal: String,
+        implementation_ref: Option<String>,
+        skill_refs: Vec<String>,
+        tool_refs: Vec<String>,
+    ) -> Self {
         Self {
             task_id,
             tenant_id,
             namespace,
             goal,
+            implementation_ref,
+            skill_refs,
+            tool_refs,
         }
     }
 }
@@ -61,10 +78,7 @@ impl TaskRuntime {
         }
     }
 
-    pub fn transition_to(
-        &mut self,
-        next: TaskStatus,
-    ) -> Result<TransitionOutcome, &'static str> {
+    pub fn transition_to(&mut self, next: TaskStatus) -> Result<TransitionOutcome, &'static str> {
         apply_task_status_transition(&mut self.status, next)
     }
 }
