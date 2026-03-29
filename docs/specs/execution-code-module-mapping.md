@@ -52,6 +52,54 @@ src/
   resident/
 ```
 
+## 4.1 当前执行层落地状态
+
+截至当前实现，执行面 CLI 已经从单体入口收敛成“薄分发层 + 领域子目录”：
+
+```text
+src/app/execution.rs
+src/app/execution/
+  capability/
+    mod.rs
+    skill.rs
+    tool.rs
+    approval.rs
+    execution_record.rs
+  control/
+    mod.rs
+  overview/
+    mod.rs
+    support.rs
+  protocol/
+    mod.rs
+  resident/
+    mod.rs
+  scheduler/
+    mod.rs
+  task/
+    mod.rs
+    basic.rs
+    observability.rs
+    rerun.rs
+  trigger/
+    mod.rs
+  common_support.rs
+  tests.rs
+```
+
+当前含义：
+
+- `execution.rs` 只负责命令分发，不再承载主要领域逻辑
+- `task/` 承担任务提交、inspect/list、rerun、任务观测
+- `overview/` 承担 runtime/system overview 与系统告警聚合
+- `scheduler/` 承担 run-once、loop 和单任务调度推进
+- `protocol/` 承担 queen/worker/heartbeat/shutdown 生命周期
+- `resident/` 和 `trigger/` 分别承担读写与状态推进
+- `capability/` 已继续细分为 `skill`、`tool`、`approval`、`execution_record`
+- `control/` 已承接 shell policy、审批状态过滤、执行前授权检查等控制逻辑
+
+这说明“阶段 3：拆分执行面大入口”已经不再只是目标，而是已有明确落地骨架。
+
 ## 5. 模块职责
 
 ### 5.1 `app`
@@ -206,6 +254,12 @@ src/
 - `recovery`
 - `trigger`
 
+当前映射说明：
+
+- `app/execution/task/observability.rs` 承担任务级 audit / replay / trace 查询
+- `app/execution/overview/support.rs` 承担系统级告警、总览聚合和排序辅助
+- 事件、trace、audit 的持久化仍通过 `storage` 统一落盘
+
 ### 5.11 `control`
 
 负责：
@@ -217,6 +271,13 @@ src/
 注意：
 
 - 动作授权与对象可见性判断应可单独复用
+
+当前映射说明：
+
+- 当前已形成 `app/execution/control/mod.rs`
+- 已承接 shell policy 摘要、shell 工具识别、执行前授权、approval age/status 过滤等逻辑
+- 相关调用方已从 `overview`、`capability/skill`、`capability/tool`、`capability/approval` 切换到该模块
+- 后续仍可继续把告警 ack/过滤规则和更完整的权限前置检查向 `control` 深化
 
 ### 5.12 `registry`
 

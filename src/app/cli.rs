@@ -28,7 +28,8 @@ pub(crate) enum Command {
     AssignmentInspect,
     TaskResult,
     TaskList,
-    TaskBackfillImplementation,
+    TaskReopen,
+    TaskRerun,
     TaskInspect,
     TaskReplay,
     TraceTail,
@@ -38,12 +39,21 @@ pub(crate) enum Command {
     TriggerPause,
     TriggerResume,
     TriggerFire,
-    SkillRegister,
+    TriggerClearReady,
     SkillInspect,
     SkillList,
-    ToolRegister,
+    SkillExecute,
     ToolInspect,
     ToolList,
+    ToolApprovalInspect,
+    ToolApprovalList,
+    ToolApprovalQueue,
+    ToolApprovalOverdue,
+    ToolApprovalAlerts,
+    ToolApprovalInbox,
+    ToolExecute,
+    ExecutionInspect,
+    ExecutionList,
     HeartbeatSend,
     ShutdownSend,
     ResidentRun,
@@ -52,16 +62,31 @@ pub(crate) enum Command {
     ResidentPause,
     ResidentResume,
     ResidentStop,
+    SchedulerRunOnce,
+    SchedulerLoop,
     RuntimeOverview,
+    SystemOverview,
+    SystemAlerts,
     AuditTail,
     FitnessRun,
     FitnessExplain,
     GovernancePlan,
     GovernanceApply,
+    ReflectionRecord,
+    ReflectionInspect,
+    ReflectionList,
+    ReviewRecord,
+    ReviewSuggest,
+    ReviewMaterialize,
+    ReviewInspect,
+    ReviewList,
+    GovernanceDefaultsInspect,
+    GovernanceDefaultsSet,
     RegistrySync,
     RegistryOverview,
+    ImplementationInspect,
+    ImplementationList,
     LineageShow,
-    PracticePublish,
 }
 
 pub fn run(role: BinaryRole) -> ExitCode {
@@ -106,7 +131,8 @@ fn parse_execution_command(tokens: &[&str]) -> Result<Command, String> {
             ("assignment", "inspect") => Ok(Command::AssignmentInspect),
             ("task", "result") => Ok(Command::TaskResult),
             ("task", "list") => Ok(Command::TaskList),
-            ("task", "backfill-implementation") => Ok(Command::TaskBackfillImplementation),
+            ("task", "reopen") => Ok(Command::TaskReopen),
+            ("task", "rerun") => Ok(Command::TaskRerun),
             ("task", "inspect") => Ok(Command::TaskInspect),
             ("task", "replay") => Ok(Command::TaskReplay),
             ("trace", "tail") => Ok(Command::TraceTail),
@@ -116,12 +142,21 @@ fn parse_execution_command(tokens: &[&str]) -> Result<Command, String> {
             ("trigger", "pause") => Ok(Command::TriggerPause),
             ("trigger", "resume") => Ok(Command::TriggerResume),
             ("trigger", "fire") => Ok(Command::TriggerFire),
-            ("skill", "register") => Ok(Command::SkillRegister),
+            ("trigger", "clear-ready") => Ok(Command::TriggerClearReady),
             ("skill", "inspect") => Ok(Command::SkillInspect),
             ("skill", "list") => Ok(Command::SkillList),
-            ("tool", "register") => Ok(Command::ToolRegister),
+            ("skill", "execute") => Ok(Command::SkillExecute),
             ("tool", "inspect") => Ok(Command::ToolInspect),
             ("tool", "list") => Ok(Command::ToolList),
+            ("tool", "approval-inspect") => Ok(Command::ToolApprovalInspect),
+            ("tool", "approval-list") => Ok(Command::ToolApprovalList),
+            ("tool", "approval-queue") => Ok(Command::ToolApprovalQueue),
+            ("tool", "approval-overdue") => Ok(Command::ToolApprovalOverdue),
+            ("tool", "approval-alerts") => Ok(Command::ToolApprovalAlerts),
+            ("tool", "approval-inbox") => Ok(Command::ToolApprovalInbox),
+            ("tool", "execute") => Ok(Command::ToolExecute),
+            ("execution", "inspect") => Ok(Command::ExecutionInspect),
+            ("execution", "list") => Ok(Command::ExecutionList),
             ("heartbeat", "send") => Ok(Command::HeartbeatSend),
             ("shutdown", "send") => Ok(Command::ShutdownSend),
             ("resident", "run") => Ok(Command::ResidentRun),
@@ -130,7 +165,11 @@ fn parse_execution_command(tokens: &[&str]) -> Result<Command, String> {
             ("resident", "pause") => Ok(Command::ResidentPause),
             ("resident", "resume") => Ok(Command::ResidentResume),
             ("resident", "stop") => Ok(Command::ResidentStop),
+            ("scheduler", "run-once") => Ok(Command::SchedulerRunOnce),
+            ("scheduler", "loop") => Ok(Command::SchedulerLoop),
             ("runtime", "overview") => Ok(Command::RuntimeOverview),
+            ("system", "overview") => Ok(Command::SystemOverview),
+            ("system", "alerts") => Ok(Command::SystemAlerts),
             ("audit", "tail") => Ok(Command::AuditTail),
             _ => Err(format!("unknown honeycomb command: {}", tokens.join(" "))),
         },
@@ -147,10 +186,21 @@ fn parse_evolution_command(tokens: &[&str]) -> Result<Command, String> {
             ("fitness", "explain") => Ok(Command::FitnessExplain),
             ("governance", "plan") => Ok(Command::GovernancePlan),
             ("governance", "apply") => Ok(Command::GovernanceApply),
+            ("reflection", "record") => Ok(Command::ReflectionRecord),
+            ("reflection", "inspect") => Ok(Command::ReflectionInspect),
+            ("reflection", "list") => Ok(Command::ReflectionList),
+            ("review", "record") => Ok(Command::ReviewRecord),
+            ("review", "suggest") => Ok(Command::ReviewSuggest),
+            ("review", "materialize") => Ok(Command::ReviewMaterialize),
+            ("review", "inspect") => Ok(Command::ReviewInspect),
+            ("review", "list") => Ok(Command::ReviewList),
+            ("governance-defaults", "inspect") => Ok(Command::GovernanceDefaultsInspect),
+            ("governance-defaults", "set") => Ok(Command::GovernanceDefaultsSet),
             ("registry", "sync") => Ok(Command::RegistrySync),
             ("registry", "overview") => Ok(Command::RegistryOverview),
+            ("implementation", "inspect") => Ok(Command::ImplementationInspect),
+            ("implementation", "list") => Ok(Command::ImplementationList),
             ("lineage", "show") => Ok(Command::LineageShow),
-            ("practice", "publish") => Ok(Command::PracticePublish),
             _ => Err(format!(
                 "unknown honeycomb-evolution command: {}",
                 tokens.join(" ")
@@ -175,7 +225,8 @@ pub(crate) fn command_name(command: &Command) -> &'static str {
         Command::AssignmentInspect => "assignment inspect",
         Command::TaskResult => "task result",
         Command::TaskList => "task list",
-        Command::TaskBackfillImplementation => "task backfill-implementation",
+        Command::TaskReopen => "task reopen",
+        Command::TaskRerun => "task rerun",
         Command::TaskInspect => "task inspect",
         Command::TaskReplay => "task replay",
         Command::TraceTail => "trace tail",
@@ -185,12 +236,21 @@ pub(crate) fn command_name(command: &Command) -> &'static str {
         Command::TriggerPause => "trigger pause",
         Command::TriggerResume => "trigger resume",
         Command::TriggerFire => "trigger fire",
-        Command::SkillRegister => "skill register",
+        Command::TriggerClearReady => "trigger clear-ready",
         Command::SkillInspect => "skill inspect",
         Command::SkillList => "skill list",
-        Command::ToolRegister => "tool register",
+        Command::SkillExecute => "skill execute",
         Command::ToolInspect => "tool inspect",
         Command::ToolList => "tool list",
+        Command::ToolApprovalInspect => "tool approval-inspect",
+        Command::ToolApprovalList => "tool approval-list",
+        Command::ToolApprovalQueue => "tool approval-queue",
+        Command::ToolApprovalOverdue => "tool approval-overdue",
+        Command::ToolApprovalAlerts => "tool approval-alerts",
+        Command::ToolApprovalInbox => "tool approval-inbox",
+        Command::ToolExecute => "tool execute",
+        Command::ExecutionInspect => "execution inspect",
+        Command::ExecutionList => "execution list",
         Command::HeartbeatSend => "heartbeat send",
         Command::ShutdownSend => "shutdown send",
         Command::ResidentRun => "resident run",
@@ -199,16 +259,31 @@ pub(crate) fn command_name(command: &Command) -> &'static str {
         Command::ResidentPause => "resident pause",
         Command::ResidentResume => "resident resume",
         Command::ResidentStop => "resident stop",
+        Command::SchedulerRunOnce => "scheduler run-once",
+        Command::SchedulerLoop => "scheduler loop",
         Command::RuntimeOverview => "runtime overview",
+        Command::SystemOverview => "system overview",
+        Command::SystemAlerts => "system alerts",
         Command::AuditTail => "audit tail",
         Command::FitnessRun => "fitness run",
         Command::FitnessExplain => "fitness explain",
         Command::GovernancePlan => "governance plan",
         Command::GovernanceApply => "governance apply",
+        Command::ReflectionRecord => "reflection record",
+        Command::ReflectionInspect => "reflection inspect",
+        Command::ReflectionList => "reflection list",
+        Command::ReviewRecord => "review record",
+        Command::ReviewSuggest => "review suggest",
+        Command::ReviewMaterialize => "review materialize",
+        Command::ReviewInspect => "review inspect",
+        Command::ReviewList => "review list",
+        Command::GovernanceDefaultsInspect => "governance-defaults inspect",
+        Command::GovernanceDefaultsSet => "governance-defaults set",
         Command::RegistrySync => "registry sync",
         Command::RegistryOverview => "registry overview",
+        Command::ImplementationInspect => "implementation inspect",
+        Command::ImplementationList => "implementation list",
         Command::LineageShow => "lineage show",
-        Command::PracticePublish => "practice publish",
     }
 }
 
@@ -270,11 +345,12 @@ fn print_help(role: BinaryRole) {
             println!(
                 "  task list [--implementation-ref REF] [--skill-ref ID] [--status STATUS] [--root PATH]"
             );
+            println!("  task reopen [--task-id ID] [--root PATH]");
             println!(
-                "  task backfill-implementation [--task-id ID] [--all] [--root PATH]"
+                "  task rerun [--task-id ID] [--from-plan PATH|--prune-plan PATH|--plan-summary PATH] [--all-failed|--all-completed] [--tenant ID] [--namespace NS] [--skill-ref ID] [--implementation-ref REF] [--goal-contains TEXT] [--assignment-status STATUS] [--has-trigger|--without-trigger] [--with-active-resident|--without-resident] [--sort target|status] [--limit N] [--dry-run] [--summary-only] [--save-plan PATH|--append-plan PATH] [--trigger-id ID] [--fire-trigger] [--schedule-now] [--worker-node ID] [--auto-complete] [--result-status completed|failed] [--output-prefix TEXT] [--json] [--root PATH]"
             );
             println!(
-                "  task inspect [--task-id ID] [--root PATH] [--with-assignments] [--with-residents] [--with-triggers]"
+                "  task inspect [--task-id ID] [--root PATH] [--with-assignments] [--with-residents] [--with-triggers] [--with-executions]"
             );
             println!("  task replay [--task-id ID] [--root PATH]");
             println!("  trace tail [--task-id ID] [--implementation-ref REF] [--root PATH]");
@@ -292,18 +368,37 @@ fn print_help(role: BinaryRole) {
             println!("  trigger pause [--task-id ID] [--trigger-id ID] [--root PATH]");
             println!("  trigger resume [--task-id ID] [--trigger-id ID] [--root PATH]");
             println!("  trigger fire [--task-id ID] [--trigger-id ID] [--root PATH]");
-            println!(
-                "  skill register [--skill-id ID] [--display-name TEXT] [--description TEXT] [--implementation-ref TEXT] [--owner ID] [--version TEXT] [--default-tool-ref ID] [--goal-template TEXT] [--root PATH]"
-            );
+            println!("  trigger clear-ready [--task-id ID] [--trigger-id ID] [--root PATH]");
             println!(
                 "  skill inspect [--skill-id ID] [--with-lineage] [--with-runtime] [--recommended-only] [--root PATH]"
             );
             println!("  skill list [--root PATH]");
             println!(
-                "  tool register [--tool-id ID] [--display-name TEXT] [--description TEXT] [--entrypoint TEXT] [--owner ID] [--version TEXT] [--root PATH]"
+                "  skill execute [--skill-id ID] [--task-id ID] [--assignment-id ID] [--input TEXT] [--use-recommended-impl] [--run-tools] [--root PATH]"
             );
             println!("  tool inspect [--tool-id ID] [--with-runtime] [--root PATH]");
-            println!("  tool list [--root PATH]");
+            println!("  tool list [--shell-only] [--blocked-only] [--root PATH]");
+            println!("  tool approval-inspect [--request-id ID] [--root PATH]");
+            println!(
+                "  tool approval-list [--status pending|approved|rejected] [--tool-id ID] [--root PATH]"
+            );
+            println!("  tool approval-queue [--tool-id ID] [--owner ID] [--root PATH]");
+            println!(
+                "  tool approval-overdue [--tool-id ID] [--owner ID] [--threshold-minutes N] [--root PATH]"
+            );
+            println!(
+                "  tool approval-alerts [--tool-id ID] [--owner ID] [--threshold-minutes N] [--include-acked] [--json] [--root PATH]"
+            );
+            println!(
+                "  tool approval-inbox [--tool-id ID] [--owner ID] [--threshold-minutes N] [--json] [--root PATH]"
+            );
+            println!(
+                "  tool execute [--tool-id ID] [--task-id ID] [--assignment-id ID] [--input TEXT] [--root PATH]"
+            );
+            println!("  execution inspect [--execution-id ID] [--root PATH]");
+            println!(
+                "  execution list [--task-id ID] [--skill-ref ID] [--tool-ref ID] [--root PATH]"
+            );
             println!(
                 "  resident run [--task-id ID] [--resident-id ID] [--worker-node ID] [--purpose TEXT] [--root PATH]"
             );
@@ -312,7 +407,21 @@ fn print_help(role: BinaryRole) {
             println!("  resident pause [--task-id ID] [--resident-id ID] [--root PATH]");
             println!("  resident resume [--task-id ID] [--resident-id ID] [--root PATH]");
             println!("  resident stop [--task-id ID] [--resident-id ID] [--root PATH]");
-            println!("  runtime overview [--with-details] [--with-gaps] [--exclude-legacy] [--root PATH]");
+            println!(
+                "  scheduler run-once [--worker-node ID] [--limit N] [--triggered-only] [--auto-complete] [--result-status completed|failed] [--output-prefix TEXT] [--json] [--root PATH]"
+            );
+            println!(
+                "  scheduler loop [--worker-node ID] [--iterations N] [--until-idle] [--sleep-ms N] [--limit N] [--triggered-only] [--auto-complete] [--result-status completed|failed] [--output-prefix TEXT] [--json] [--root PATH]"
+            );
+            println!(
+                "  runtime overview [--with-details] [--with-gaps] [--with-policy] [--exclude-legacy] [--json] [--root PATH]"
+            );
+            println!(
+                "  system overview [--owner ID] [--with-details] [--with-gaps] [--with-policy] [--with-runtime-health] [--sort count|target] [--limit N] [--summary-only] [--include-acked-policy] [--exclude-legacy] [--json] [--root PATH]"
+            );
+            println!(
+                "  system alerts [--kind active_task|trigger_waiting_consumption|blocked_tool|overdue_request] [--owner ID] [--severity attention|warning|healthy] [--summary-by kind|owner|severity] [--sort severity|target] [--limit N] [--summary-only] [--include-acked-policy] [--exclude-legacy] [--json] [--root PATH]"
+            );
             println!("  audit tail [--task-id ID] [--implementation-ref REF] [--root PATH]");
         }
         BinaryRole::Evolution => {
@@ -330,10 +439,33 @@ fn print_help(role: BinaryRole) {
             println!(
                 "  governance apply [--implementation ID] [--skill-ref ID] [--tool-ref ID] [--root PATH]"
             );
+            println!(
+                "  reflection record [--reflection-id ID] [--title TEXT] [--period-label TEXT] [--recorded-by ID] [--decision no_major_drift|drift_detected] [--summary TEXT] [--drift TEXT] [--freeze-action TEXT] [--next-action TEXT] [--review-ref ID] [--evidence-ref PATH] [--root PATH]"
+            );
+            println!("  reflection inspect [--reflection-id ID] [--root PATH]");
+            println!("  reflection list [--decision no_major_drift|drift_detected] [--root PATH]");
+            println!(
+                "  review record [--review-id ID] [--title TEXT] [--change-scope TEXT] [--requested-by ID] [--target-plane execution|evolution|cross_plane] [--target-module ID] [--writes-runtime] [--writes-long-term] [--mutates-historical-facts] [--touches-registry] [--touches-approval-or-policy] [--status open|completed] [--decision pass|pass_with_followup|needs_redesign|blocked] [--rationale TEXT] [--followup TEXT] [--evidence-ref PATH] [--root PATH]"
+            );
+            println!("  review suggest [--limit N] [--json] [--root PATH]");
+            println!("  review materialize [--limit N] [--requested-by ID] [--root PATH]");
+            println!("  review inspect [--review-id ID] [--root PATH]");
+            println!(
+                "  review list [--decision pass|pass_with_followup|needs_redesign|blocked] [--status open|completed] [--root PATH]"
+            );
+            println!("  governance-defaults inspect [--json] [--root PATH]");
+            println!(
+                "  governance-defaults set [--policy KEY=VALUE] [--clear-policy KEY] [--root PATH]"
+            );
             println!("  registry sync [--skill-id ID] [--all] [--root PATH]");
-            println!("  registry overview [--with-details] [--with-gaps] [--exclude-legacy] [--root PATH]");
-            println!("  lineage show [--skill-ref ID] [--tool-ref ID] [--with-runtime] [--root PATH]");
-            println!("  practice publish");
+            println!(
+                "  registry overview [--with-details] [--with-gaps] [--with-policy] [--exclude-legacy] [--json] [--root PATH]"
+            );
+            println!("  implementation inspect [--implementation-id ID] [--root PATH]");
+            println!("  implementation list [--skill-id ID] [--executor ID] [--root PATH]");
+            println!(
+                "  lineage show [--skill-ref ID] [--tool-ref ID] [--with-runtime] [--root PATH]"
+            );
         }
     }
 }
@@ -375,6 +507,70 @@ mod tests {
     }
 
     #[test]
+    fn parse_evolution_review_record_command() {
+        let args = vec!["review".to_owned(), "record".to_owned()];
+        let command = parse_command(BinaryRole::Evolution, &args);
+
+        assert_eq!(command, Ok(Command::ReviewRecord));
+    }
+
+    #[test]
+    fn parse_evolution_review_suggest_command() {
+        let args = vec!["review".to_owned(), "suggest".to_owned()];
+        let command = parse_command(BinaryRole::Evolution, &args);
+
+        assert_eq!(command, Ok(Command::ReviewSuggest));
+    }
+
+    #[test]
+    fn parse_evolution_review_materialize_command() {
+        let args = vec!["review".to_owned(), "materialize".to_owned()];
+        let command = parse_command(BinaryRole::Evolution, &args);
+
+        assert_eq!(command, Ok(Command::ReviewMaterialize));
+    }
+
+    #[test]
+    fn parse_evolution_governance_defaults_inspect_command() {
+        let args = vec!["governance-defaults".to_owned(), "inspect".to_owned()];
+        let command = parse_command(BinaryRole::Evolution, &args);
+
+        assert_eq!(command, Ok(Command::GovernanceDefaultsInspect));
+    }
+
+    #[test]
+    fn parse_evolution_governance_defaults_set_command() {
+        let args = vec!["governance-defaults".to_owned(), "set".to_owned()];
+        let command = parse_command(BinaryRole::Evolution, &args);
+
+        assert_eq!(command, Ok(Command::GovernanceDefaultsSet));
+    }
+
+    #[test]
+    fn parse_evolution_reflection_record_command() {
+        let args = vec!["reflection".to_owned(), "record".to_owned()];
+        let command = parse_command(BinaryRole::Evolution, &args);
+
+        assert_eq!(command, Ok(Command::ReflectionRecord));
+    }
+
+    #[test]
+    fn parse_evolution_implementation_inspect_command() {
+        let args = vec!["implementation".to_owned(), "inspect".to_owned()];
+        let command = parse_command(BinaryRole::Evolution, &args);
+
+        assert_eq!(command, Ok(Command::ImplementationInspect));
+    }
+
+    #[test]
+    fn parse_evolution_implementation_list_command() {
+        let args = vec!["implementation".to_owned(), "list".to_owned()];
+        let command = parse_command(BinaryRole::Evolution, &args);
+
+        assert_eq!(command, Ok(Command::ImplementationList));
+    }
+
+    #[test]
     fn parse_execution_trigger_inspect_command() {
         let args = vec!["trigger".to_owned(), "inspect".to_owned()];
         let command = parse_command(BinaryRole::Execution, &args);
@@ -388,6 +584,14 @@ mod tests {
         let command = parse_command(BinaryRole::Execution, &args);
 
         assert_eq!(command, Ok(Command::TriggerPause));
+    }
+
+    #[test]
+    fn parse_execution_trigger_clear_ready_command() {
+        let args = vec!["trigger".to_owned(), "clear-ready".to_owned()];
+        let command = parse_command(BinaryRole::Execution, &args);
+
+        assert_eq!(command, Ok(Command::TriggerClearReady));
     }
 
     #[test]
@@ -423,11 +627,91 @@ mod tests {
     }
 
     #[test]
-    fn parse_execution_skill_register_command() {
-        let args = vec!["skill".to_owned(), "register".to_owned()];
+    fn parse_execution_scheduler_run_once_command() {
+        let args = vec!["scheduler".to_owned(), "run-once".to_owned()];
         let command = parse_command(BinaryRole::Execution, &args);
 
-        assert_eq!(command, Ok(Command::SkillRegister));
+        assert_eq!(command, Ok(Command::SchedulerRunOnce));
+    }
+
+    #[test]
+    fn parse_execution_scheduler_loop_command() {
+        let args = vec!["scheduler".to_owned(), "loop".to_owned()];
+        let command = parse_command(BinaryRole::Execution, &args);
+
+        assert_eq!(command, Ok(Command::SchedulerLoop));
+    }
+
+    #[test]
+    fn parse_execution_system_overview_command() {
+        let args = vec!["system".to_owned(), "overview".to_owned()];
+        let command = parse_command(BinaryRole::Execution, &args);
+
+        assert_eq!(command, Ok(Command::SystemOverview));
+    }
+
+    #[test]
+    fn parse_execution_system_alerts_command() {
+        let args = vec!["system".to_owned(), "alerts".to_owned()];
+        let command = parse_command(BinaryRole::Execution, &args);
+
+        assert_eq!(command, Ok(Command::SystemAlerts));
+    }
+
+    #[test]
+    fn parse_execution_skill_execute_command() {
+        let args = vec!["skill".to_owned(), "execute".to_owned()];
+        let command = parse_command(BinaryRole::Execution, &args);
+
+        assert_eq!(command, Ok(Command::SkillExecute));
+    }
+
+    #[test]
+    fn parse_execution_execution_list_command() {
+        let args = vec!["execution".to_owned(), "list".to_owned()];
+        let command = parse_command(BinaryRole::Execution, &args);
+
+        assert_eq!(command, Ok(Command::ExecutionList));
+    }
+
+    #[test]
+    fn parse_execution_tool_approval_list_command() {
+        let args = vec!["tool".to_owned(), "approval-list".to_owned()];
+        let command = parse_command(BinaryRole::Execution, &args);
+
+        assert_eq!(command, Ok(Command::ToolApprovalList));
+    }
+
+    #[test]
+    fn parse_execution_tool_approval_queue_command() {
+        let args = vec!["tool".to_owned(), "approval-queue".to_owned()];
+        let command = parse_command(BinaryRole::Execution, &args);
+
+        assert_eq!(command, Ok(Command::ToolApprovalQueue));
+    }
+
+    #[test]
+    fn parse_execution_tool_approval_overdue_command() {
+        let args = vec!["tool".to_owned(), "approval-overdue".to_owned()];
+        let command = parse_command(BinaryRole::Execution, &args);
+
+        assert_eq!(command, Ok(Command::ToolApprovalOverdue));
+    }
+
+    #[test]
+    fn parse_execution_tool_approval_alerts_command() {
+        let args = vec!["tool".to_owned(), "approval-alerts".to_owned()];
+        let command = parse_command(BinaryRole::Execution, &args);
+
+        assert_eq!(command, Ok(Command::ToolApprovalAlerts));
+    }
+
+    #[test]
+    fn parse_execution_tool_approval_inbox_command() {
+        let args = vec!["tool".to_owned(), "approval-inbox".to_owned()];
+        let command = parse_command(BinaryRole::Execution, &args);
+
+        assert_eq!(command, Ok(Command::ToolApprovalInbox));
     }
 
     #[test]
@@ -439,11 +723,19 @@ mod tests {
     }
 
     #[test]
-    fn parse_execution_task_backfill_command() {
-        let args = vec!["task".to_owned(), "backfill-implementation".to_owned()];
+    fn parse_execution_task_reopen_command() {
+        let args = vec!["task".to_owned(), "reopen".to_owned()];
         let command = parse_command(BinaryRole::Execution, &args);
 
-        assert_eq!(command, Ok(Command::TaskBackfillImplementation));
+        assert_eq!(command, Ok(Command::TaskReopen));
+    }
+
+    #[test]
+    fn parse_execution_task_rerun_command() {
+        let args = vec!["task".to_owned(), "rerun".to_owned()];
+        let command = parse_command(BinaryRole::Execution, &args);
+
+        assert_eq!(command, Ok(Command::TaskRerun));
     }
 
     #[test]

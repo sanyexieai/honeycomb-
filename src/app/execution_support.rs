@@ -255,6 +255,7 @@ mod tests {
             "worker-a".to_owned(),
             "input".to_owned(),
             None,
+            None,
             Vec::new(),
             Vec::new(),
         )];

@@ -4,11 +4,14 @@
     "task_id": "task-demo-flow-3",
     "tenant_id": "tenant-local",
     "namespace": "user/demo",
-    "goal": "end-to-end-demo"
+    "goal": "end-to-end-demo",
+    "implementation_ref": null,
+    "skill_refs": [],
+    "tool_refs": []
   },
   "task_runtime": {
     "task_id": "task-demo-flow-3",
     "queen_node_id": "queen-demo",
-    "status": "queued"
+    "status": "running"
   }
 }

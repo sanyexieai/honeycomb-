@@ -8,3 +8,5 @@
 {"event_id":"event-assign-demo-12-result","event_type":"task_result","task_id":"task-demo-flow-12","timestamp":"unix_ms:1774546587927","payload":"worker=worker-demo status=completed"}
 {"event_id":"msg-hello-worker-repeat-2","event_type":"hello_received","task_id":"task-demo-flow-12","timestamp":"unix_ms:1774546587948","payload":"worker=worker-repeat-2 queen=queen-demo"}
 {"event_id":"msg-hello-ack-worker-repeat-2","event_type":"hello_accepted","task_id":"task-demo-flow-12","timestamp":"unix_ms:1774546587948","payload":"accepted"}
+{"event_id":"event-task-demo-flow-12-reopen","event_type":"task_reopened","task_id":"task-demo-flow-12","timestamp":"unix_ms:1774693047492","payload":"status=queued"}
+{"event_id":"event-sched-task-demo-flow-12-2-scheduled","event_type":"assignment_scheduled","task_id":"task-demo-flow-12","timestamp":"unix_ms:1774693047492","payload":"worker=worker-batch attempt_id=attempt-2 implementation=<none> skills=<none> tools=<none>"}

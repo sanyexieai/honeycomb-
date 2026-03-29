@@ -13,5 +13,5 @@ pub use state_machine::{
     apply_assignment_status_transition, apply_task_status_transition,
     can_transition_assignment_status, can_transition_task_status,
 };
-pub use task::{TaskHiveSession, TaskRuntime, TaskSpec, TaskStatus};
+pub use task::{ImplementationSnapshot, TaskHiveSession, TaskRuntime, TaskSpec, TaskStatus};
 pub use trigger::{Trigger, TriggerStatus};

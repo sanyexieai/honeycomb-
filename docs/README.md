@@ -49,6 +49,9 @@
 
 - `specs/security-and-trust-model.md`
 - `specs/observability-and-replay.md`
+- `specs/architecture-review-and-guardrails.md`
+- `specs/architecture-review-record.md`
+- `specs/architecture-reflection-record.md`
 
 技能与生态：
 
@@ -80,5 +83,7 @@
 - `specs/schedule-state-and-history.md`
 - `specs/execution-plane-implementation-roadmap.md`
 - `specs/evolution-plane-implementation-roadmap.md`
+- `specs/convergence-review-and-roadmap.md`
+- `specs/current-capability-audit-and-aggressive-convergence.md`
 
 未列入上文优先顺序但已存在的规格：`specs/runtime-and-traits.md`、`specs/process-executor.md`（与运行时/执行器实现细节相关）。

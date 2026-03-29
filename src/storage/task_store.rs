@@ -468,7 +468,7 @@ mod tests {
     use std::path::PathBuf;
     use std::time::{SystemTime, UNIX_EPOCH};
 
-    use crate::runtime::{AssignmentStatus, TaskStatus};
+    use crate::runtime::{AssignmentStatus, ImplementationSnapshot, TaskStatus};
 
     use super::*;
 
@@ -580,6 +580,7 @@ mod tests {
             "worker-a".to_owned(),
             "draft-post".to_owned(),
             Some("impl://xhs/publish/v1".to_owned()),
+            None,
             vec!["skill/xhs_publish".to_owned()],
             vec!["tool/xhs_browser_login".to_owned()],
         );
@@ -639,6 +640,95 @@ mod tests {
     }
 
     #[test]
+    fn persist_task_submission_preserves_implementation_snapshot() {
+        let root = unique_test_root();
+        let spec = TaskSpec::new(
+            "task-store-impl-snapshot".to_owned(),
+            "tenant-local".to_owned(),
+            "user/demo".to_owned(),
+            "test implementation snapshot".to_owned(),
+            Some("impl://xhs/publish/v1".to_owned()),
+            vec!["skill/xhs_publish".to_owned()],
+            vec!["tool/xhs_browser_login".to_owned()],
+        )
+        .with_implementation_snapshot(Some(ImplementationSnapshot {
+            implementation_id: "impl://xhs/publish/v1".to_owned(),
+            skill_id: "skill/xhs_publish".to_owned(),
+            executor: "worker_process".to_owned(),
+            entry_kind: "script".to_owned(),
+            entry_path: "scripts/xhs_publish_v1.sh".to_owned(),
+            strategy_mode: Some("draft_then_publish".to_owned()),
+            prompt_component: Some("prompts/xhs.md".to_owned()),
+            config_component: None,
+            max_cost: Some("0.02".to_owned()),
+            max_latency_ms: Some("5000".to_owned()),
+        }));
+        let runtime = TaskRuntime::queued(spec.task_id.clone(), "queen-a".to_owned());
+
+        persist_task_submission(&root, &spec, &runtime).expect("task submission should persist");
+        let (_, record) =
+            load_task_submission(&root, &spec.task_id).expect("task submission should be readable");
+
+        let snapshot = record
+            .task_spec
+            .implementation_snapshot
+            .expect("implementation snapshot should persist");
+        assert_eq!(snapshot.implementation_id, "impl://xhs/publish/v1");
+        assert_eq!(snapshot.skill_id, "skill/xhs_publish");
+        assert_eq!(snapshot.executor, "worker_process");
+        assert_eq!(
+            snapshot.strategy_mode.as_deref(),
+            Some("draft_then_publish")
+        );
+
+        fs::remove_dir_all(root).expect("temp directory should be removed");
+    }
+
+    #[test]
+    fn persist_assignment_preserves_implementation_snapshot() {
+        let root = unique_test_root();
+        let assignment = Assignment::assigned(
+            "assign-store-impl-snapshot".to_owned(),
+            "task-store-assign-snapshot".to_owned(),
+            "attempt-1".to_owned(),
+            "worker-a".to_owned(),
+            "draft-post".to_owned(),
+            Some("impl://xhs/publish/v1".to_owned()),
+            Some(ImplementationSnapshot {
+                implementation_id: "impl://xhs/publish/v1".to_owned(),
+                skill_id: "skill/xhs_publish".to_owned(),
+                executor: "worker_process".to_owned(),
+                entry_kind: "script".to_owned(),
+                entry_path: "scripts/xhs_publish_v1.sh".to_owned(),
+                strategy_mode: Some("draft_then_publish".to_owned()),
+                prompt_component: Some("prompts/xhs.md".to_owned()),
+                config_component: None,
+                max_cost: Some("0.02".to_owned()),
+                max_latency_ms: Some("5000".to_owned()),
+            }),
+            vec!["skill/xhs_publish".to_owned()],
+            vec!["tool/xhs_browser_login".to_owned()],
+        );
+
+        persist_assignment(&root, &assignment).expect("assignment should persist");
+        let (_, loaded) = load_assignment(&root, &assignment.task_id, &assignment.assignment_id)
+            .expect("assignment should load");
+
+        let snapshot = loaded
+            .implementation_snapshot
+            .expect("assignment snapshot should persist");
+        assert_eq!(snapshot.implementation_id, "impl://xhs/publish/v1");
+        assert_eq!(snapshot.skill_id, "skill/xhs_publish");
+        assert_eq!(snapshot.executor, "worker_process");
+        assert_eq!(
+            snapshot.strategy_mode.as_deref(),
+            Some("draft_then_publish")
+        );
+
+        fs::remove_dir_all(root).expect("temp directory should be removed");
+    }
+
+    #[test]
     fn list_task_submissions_reads_multiple_records() {
         let root = unique_test_root();
         let first = TaskSpec::new(
@@ -670,7 +760,10 @@ mod tests {
         assert_eq!(tasks.len(), 2);
         assert_eq!(tasks[0].task_spec.task_id, "task-a");
         assert_eq!(tasks[1].task_spec.task_id, "task-b");
-        assert_eq!(tasks[1].task_spec.implementation_ref.as_deref(), Some("impl-b"));
+        assert_eq!(
+            tasks[1].task_spec.implementation_ref.as_deref(),
+            Some("impl-b")
+        );
 
         fs::remove_dir_all(root).expect("temp directory should be removed");
     }
@@ -687,6 +780,7 @@ mod tests {
             input: "draft-post".to_owned(),
             output: Some("posted".to_owned()),
             implementation_ref: Some("impl://xhs/publish/v1".to_owned()),
+            implementation_snapshot: None,
             skill_refs: vec!["skill/xhs_publish".to_owned()],
             tool_refs: vec!["tool/xhs_browser_login".to_owned()],
         };

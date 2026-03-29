@@ -4,11 +4,14 @@
     "task_id": "task-demo-flow-12",
     "tenant_id": "tenant-local",
     "namespace": "user/demo",
-    "goal": "cli-outcome-check"
+    "goal": "cli-outcome-check",
+    "implementation_ref": null,
+    "skill_refs": [],
+    "tool_refs": []
   },
   "task_runtime": {
     "task_id": "task-demo-flow-12",
     "queen_node_id": "queen-demo",
-    "status": "completed"
+    "status": "running"
   }
 }

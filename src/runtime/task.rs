@@ -27,6 +27,48 @@ impl TaskStatus {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ImplementationSnapshot {
+    pub implementation_id: String,
+    pub skill_id: String,
+    pub executor: String,
+    pub entry_kind: String,
+    pub entry_path: String,
+    #[serde(default)]
+    pub strategy_mode: Option<String>,
+    #[serde(default)]
+    pub prompt_component: Option<String>,
+    #[serde(default)]
+    pub config_component: Option<String>,
+    #[serde(default)]
+    pub max_cost: Option<String>,
+    #[serde(default)]
+    pub max_latency_ms: Option<String>,
+}
+
+impl ImplementationSnapshot {
+    pub fn new(
+        implementation_id: String,
+        skill_id: String,
+        executor: String,
+        entry_kind: String,
+        entry_path: String,
+    ) -> Self {
+        Self {
+            implementation_id,
+            skill_id,
+            executor,
+            entry_kind,
+            entry_path,
+            strategy_mode: None,
+            prompt_component: None,
+            config_component: None,
+            max_cost: None,
+            max_latency_ms: None,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct TaskSpec {
     pub task_id: String,
     pub tenant_id: String,
@@ -34,6 +76,8 @@ pub struct TaskSpec {
     pub goal: String,
     #[serde(default)]
     pub implementation_ref: Option<String>,
+    #[serde(default)]
+    pub implementation_snapshot: Option<ImplementationSnapshot>,
     #[serde(default)]
     pub skill_refs: Vec<String>,
     #[serde(default)]
@@ -56,9 +100,18 @@ impl TaskSpec {
             namespace,
             goal,
             implementation_ref,
+            implementation_snapshot: None,
             skill_refs,
             tool_refs,
         }
+    }
+
+    pub fn with_implementation_snapshot(
+        mut self,
+        implementation_snapshot: Option<ImplementationSnapshot>,
+    ) -> Self {
+        self.implementation_snapshot = implementation_snapshot;
+        self
     }
 }
 

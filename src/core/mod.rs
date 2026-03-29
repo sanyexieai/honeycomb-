@@ -10,3 +10,9 @@ pub fn current_timestamp() -> String {
         Err(_) => "unix_ms:0".to_owned(),
     }
 }
+
+pub fn parse_unix_ms_timestamp(value: &str) -> Option<u128> {
+    value
+        .strip_prefix("unix_ms:")
+        .and_then(|raw| raw.parse::<u128>().ok())
+}

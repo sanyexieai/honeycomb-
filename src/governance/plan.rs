@@ -1,20 +1,24 @@
 use serde::{Deserialize, Serialize};
 
-use super::GovernanceDecision;
+use super::{GovernanceDecision, GovernedImplementation};
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct EvolutionPlan {
-    pub implementation_id: String,
+    pub implementation: GovernedImplementation,
     pub decision: GovernanceDecision,
     pub rationale: String,
 }
 
 impl EvolutionPlan {
-    pub fn observe(implementation_id: String, rationale: String) -> Self {
+    pub fn observe(implementation: GovernedImplementation, rationale: String) -> Self {
         Self {
-            implementation_id,
+            implementation,
             decision: GovernanceDecision::Observe,
             rationale,
         }
+    }
+
+    pub fn implementation_id(&self) -> &str {
+        &self.implementation.implementation_id
     }
 }

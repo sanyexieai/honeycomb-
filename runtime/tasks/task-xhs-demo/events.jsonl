@@ -7,3 +7,7 @@
 {"event_id":"msg-shutdown-worker-a","event_type":"shutdown_sent","task_id":"task-xhs-demo","timestamp":"1970-01-01T00:00:03Z","payload":"graceful-stop"}
 {"event_id":"event-assign-1-assigned","event_type":"assignment_assigned","task_id":"task-xhs-demo","timestamp":"1970-01-01T00:00:04Z","payload":"worker=worker-a attempt_id=attempt-1"}
 {"event_id":"event-assign-1-result","event_type":"task_result","task_id":"task-xhs-demo","timestamp":"1970-01-01T00:00:05Z","payload":"worker=worker-a status=completed"}
+{"event_id":"event-sched-task-xhs-demo-2-scheduled","event_type":"assignment_scheduled","task_id":"task-xhs-demo","timestamp":"unix_ms:1774690525447","payload":"worker=worker-scheduler attempt_id=attempt-2 implementation=<none> skills=<none> tools=<none>"}
+{"event_id":"event-sched-task-xhs-demo-2-result","event_type":"task_result","task_id":"task-xhs-demo","timestamp":"unix_ms:1774690525447","payload":"worker=worker-scheduler status=completed implementation=<none> skills=<none> tools=<none>"}
+{"event_id":"event-task-xhs-demo-reopen","event_type":"task_reopened","task_id":"task-xhs-demo","timestamp":"unix_ms:1774693047506","payload":"status=queued"}
+{"event_id":"event-sched-task-xhs-demo-3-scheduled","event_type":"assignment_scheduled","task_id":"task-xhs-demo","timestamp":"unix_ms:1774693047507","payload":"worker=worker-batch attempt_id=attempt-3 implementation=<none> skills=<none> tools=<none>"}

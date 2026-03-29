@@ -5,3 +5,5 @@
 {"event_id":"event-assign-demo-14-assigned","event_type":"assignment_assigned","task_id":"task-demo-flow-14","timestamp":"unix_ms:1774546783941","payload":"worker=worker-demo attempt_id=attempt-1"}
 {"event_id":"event-assign-demo-14-result","event_type":"task_result","task_id":"task-demo-flow-14","timestamp":"unix_ms:1774546783941","payload":"worker=worker-demo status=completed"}
 {"event_id":"msg-shutdown-worker-demo","event_type":"shutdown_sent","task_id":"task-demo-flow-14","timestamp":"unix_ms:1774546783941","payload":"demo-flow-complete"}
+{"event_id":"event-task-demo-flow-14-reopen","event_type":"task_reopened","task_id":"task-demo-flow-14","timestamp":"unix_ms:1774693047493","payload":"status=queued"}
+{"event_id":"event-sched-task-demo-flow-14-2-scheduled","event_type":"assignment_scheduled","task_id":"task-demo-flow-14","timestamp":"unix_ms:1774693047493","payload":"worker=worker-batch attempt_id=attempt-2 implementation=<none> skills=<none> tools=<none>"}
