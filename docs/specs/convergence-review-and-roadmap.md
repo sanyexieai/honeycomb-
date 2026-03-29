@@ -173,6 +173,12 @@
   - 已完成：`task submit/demo-flow`、`skill inspect/list/execute`、`registry sync/overview` 已接入实现体对象校验
   - 已完成：`task submit/demo-flow` 已开始把最小 `implementation_snapshot` 写入任务运行态记录
   - 已完成：`task assign` 已开始把最小 `implementation_snapshot` 写入 assignment 运行态记录
+  - 已完成：`skill execute` / `tool execute` 已开始把最小 `implementation_snapshot` 写入 execution record 运行态记录
+  - 已完成：`runtime overview` / `system overview` 的实现体聚合口径已开始优先消费运行态 `implementation_snapshot`
+  - 已完成：进化面的 `implementation usage` / `implementation hotspot` / `print_runtime_usage` 已开始优先消费运行态 `implementation_snapshot`
+  - 已完成：进化面的实现体使用统计已扩展到 `task / assignment / execution record` 三层运行态
+  - 已完成：`registry overview --with-details` 的 `implementation_usage` 已从单一 `task_count` 升级为多维实现体使用摘要
+  - 已完成：执行面的 `runtime overview` / `system overview` 已与进化面对齐到同一套多维实现体使用摘要
   - 已完成：`FitnessReport` 与 `EvolutionPlan` 已内嵌最小实现体快照，不再只围绕裸 `implementation_id`
   - 已完成：治理决策已开始直接消费 `strategy.mode`、`components.prompt`、`constraints.max_cost/max_latency_ms`
   - 已完成：`registry sync` 已对极端高风险实现体启用跳过与降权排序
@@ -194,11 +200,15 @@
   - 已完成：`review suggest/materialize` 已可识别“新热点 / 恶化热点 / 已有热点”，恶化热点会生成新的 refresh review 候选
   - 已完成：恶化热点已接入最小阈值策略，只有 guardrail 次数翻倍或绝对增量达到门槛时才生成 refresh review
   - 已完成：恶化判定已升级为多因子严重性模型，开始综合 `recommended_by`、`active_tasks`、高风险 flags 与 block 次数
+  - 已完成：implementation hotspot 的排序、review/reflection follow-up 和 review suggestion rationale 已开始吸收 `runtime_assignment_count` 与 `execution_count`
+  - 已完成：refresh review 的严重性模型与权重配置已正式吸收 `runtime_assignment_count` 与 `execution_count`
   - 已完成：refresh 阈值与严重性权重已支持从实现体 `constraints` 读取，不再完全硬编码
   - 已完成：技能对象已支持 `governance_policy`，同一 skill 下的实现体可共享 refresh 阈值与严重性权重默认值
   - 已完成：全局 `GovernanceDefaultsRecord` 已落地，可承载跨 skill 的基础治理默认策略
   - 已完成：review refresh 策略已形成 `implementation constraints -> skill governance_policy -> global governance defaults -> system default` 的分层优先级
   - 已完成：进化面已提供 `governance-defaults inspect`，全局治理默认策略已具备最小只读入口
   - 已完成：进化面已提供 `governance-defaults set`，全局治理默认策略已具备最小增量写入口
+  - 已完成：`governance-defaults inspect` 已可直接显示当前已知治理策略键，便于发现可配置的 refresh / 严重性参数
   - 已完成：`registry overview --with-details` 已可显示 global governance defaults 摘要与当前生效键
   - 已完成：implementation hotspot 已可显示 refresh / 严重性参数的命中来源层，覆盖 `implementation / skill / global / built_in`
+  - 已完成：implementation hotspot 已可直接显示 `runtime_assignment` / `execution` 严重性权重及其来源层

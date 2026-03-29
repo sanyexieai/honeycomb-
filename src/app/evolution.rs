@@ -12,10 +12,11 @@ use crate::registry::{GovernanceDefaultsRecord, ImplementationRecord, SkillRecor
 use crate::runtime::{AuditRecord, TaskRecord};
 use crate::storage::{
     append_evolution_audit, list_architecture_reflections, list_architecture_reviews,
-    list_fitness_runs, list_implementations, list_policy_alert_acks, list_shell_approval_requests,
-    list_skills, list_task_submissions, list_tools, load_architecture_reflection,
-    load_architecture_review, load_evolution_audits, load_fitness_run, load_governance_defaults,
-    load_implementation, load_skill, load_task_assignments, load_tool,
+    list_execution_records, list_fitness_runs, list_implementations, list_policy_alert_acks,
+    list_shell_approval_requests, list_skills, list_task_submissions, list_tools,
+    load_architecture_reflection, load_architecture_review, load_evolution_audits,
+    load_fitness_run, load_governance_defaults, load_implementation, load_skill,
+    load_task_assignments, load_tool,
     persist_architecture_reflection, persist_architecture_review, persist_fitness_run,
     persist_governance_defaults, update_fitness_plan, update_skill,
     validate_skill_implementation_refs,
@@ -37,11 +38,29 @@ fn is_legacy_demo_task(record: &crate::runtime::TaskRecord) -> bool {
             || record.task_spec.task_id == "task-xhs-demo")
 }
 
+fn runtime_task_implementation_id(task: &TaskRecord) -> Option<&str> {
+    task.task_spec
+        .implementation_snapshot
+        .as_ref()
+        .map(|snapshot| snapshot.implementation_id.as_str())
+        .or(task.task_spec.implementation_ref.as_deref())
+}
+
+fn runtime_assignment_implementation_id(
+    assignment: &crate::runtime::Assignment,
+) -> Option<&str> {
+    assignment
+        .implementation_snapshot
+        .as_ref()
+        .map(|snapshot| snapshot.implementation_id.as_str())
+        .or(assignment.implementation_ref.as_deref())
+}
+
 fn print_runtime_usage(root: &str, implementation_id: &str) -> std::io::Result<()> {
     let (_, tasks) = list_task_submissions(root)?;
     let matched_tasks = tasks
         .into_iter()
-        .filter(|record| record.task_spec.implementation_ref.as_deref() == Some(implementation_id))
+        .filter(|record| runtime_task_implementation_id(record) == Some(implementation_id))
         .collect::<Vec<_>>();
 
     println!("  runtime_task_count: {}", matched_tasks.len());
@@ -49,9 +68,7 @@ fn print_runtime_usage(root: &str, implementation_id: &str) -> std::io::Result<(
         let (_, assignments) = load_task_assignments(root, &task.task_spec.task_id)?;
         let matched_assignments = assignments
             .into_iter()
-            .filter(|assignment| {
-                assignment.implementation_ref.as_deref() == Some(implementation_id)
-            })
+            .filter(|assignment| runtime_assignment_implementation_id(assignment) == Some(implementation_id))
             .collect::<Vec<_>>();
 
         println!(
@@ -122,9 +139,19 @@ struct RegistryOverviewRecommendedSkillJson {
 }
 
 #[derive(Serialize)]
-struct RegistryOverviewUsageJson {
+struct RegistryOverviewCountJson {
     id: String,
     task_count: usize,
+}
+
+#[derive(Serialize)]
+struct RegistryOverviewImplementationUsageJson {
+    implementation_id: String,
+    recommended_by_skill_count: usize,
+    runtime_task_count: usize,
+    active_task_count: usize,
+    runtime_assignment_count: usize,
+    execution_count: usize,
 }
 
 #[derive(Serialize)]
@@ -154,18 +181,24 @@ struct RegistryOverviewImplementationHotspotJson {
     recommended_by_skill_count: usize,
     runtime_task_count: usize,
     active_task_count: usize,
+    runtime_assignment_count: usize,
+    execution_count: usize,
     flags: Vec<String>,
     refresh_min_absolute_increase: usize,
     refresh_min_multiplier: f64,
     refresh_min_severity_delta: usize,
     severity_weight_recommended_by: usize,
     severity_weight_active_tasks: usize,
+    severity_weight_runtime_assignments: usize,
+    severity_weight_executions: usize,
     severity_weight_severe_flags: usize,
     refresh_min_absolute_increase_source: String,
     refresh_min_multiplier_source: String,
     refresh_min_severity_delta_source: String,
     severity_weight_recommended_by_source: String,
     severity_weight_active_tasks_source: String,
+    severity_weight_runtime_assignments_source: String,
+    severity_weight_executions_source: String,
     severity_weight_severe_flags_source: String,
 }
 
@@ -209,9 +242,21 @@ struct ReviewSuggestionJson {
 struct GovernanceDefaultsInspectJson<'a> {
     policy_count: usize,
     governance_policy: &'a std::collections::BTreeMap<String, String>,
+    known_policy_keys: &'static [&'static str],
     updated_at: Option<&'a str>,
     loaded_from: String,
 }
+
+const KNOWN_GOVERNANCE_POLICY_KEYS: &[&str] = &[
+    "review_refresh_min_absolute_increase",
+    "review_refresh_min_multiplier",
+    "review_refresh_min_severity_delta",
+    "review_severity_weight_recommended_by",
+    "review_severity_weight_active_tasks",
+    "review_severity_weight_runtime_assignments",
+    "review_severity_weight_executions",
+    "review_severity_weight_severe_flags",
+];
 
 #[derive(Serialize)]
 struct RegistryOverviewPolicyShellToolJson {
@@ -330,7 +375,7 @@ struct RegistryOverviewDetailsJson {
     recommended_skill_detail_count: usize,
     recommended_skills: Vec<RegistryOverviewRecommendedSkillJson>,
     implementation_usage_detail_count: usize,
-    implementation_usage: Vec<RegistryOverviewUsageJson>,
+    implementation_usage: Vec<RegistryOverviewImplementationUsageJson>,
     implementation_signal_detail_count: usize,
     implementation_signals: Vec<RegistryOverviewImplementationSignalJson>,
     implementation_flag_count: usize,
@@ -338,9 +383,9 @@ struct RegistryOverviewDetailsJson {
     implementation_hotspot_detail_count: usize,
     implementation_hotspots: Vec<RegistryOverviewImplementationHotspotJson>,
     skill_usage_detail_count: usize,
-    skill_usage: Vec<RegistryOverviewUsageJson>,
+    skill_usage: Vec<RegistryOverviewCountJson>,
     tool_usage_detail_count: usize,
-    tool_usage: Vec<RegistryOverviewUsageJson>,
+    tool_usage: Vec<RegistryOverviewCountJson>,
 }
 
 #[derive(Serialize)]
@@ -394,6 +439,8 @@ struct ImplementationInspectJson<'a> {
     recommended_by_skill_count: usize,
     runtime_task_count: usize,
     active_task_count: usize,
+    runtime_assignment_count: usize,
+    execution_count: usize,
     origin_source: Option<&'a str>,
     origin_parent_impl: Option<&'a str>,
     loaded_from: String,
@@ -404,6 +451,8 @@ struct ImplementationUsageSummary {
     recommended_by_skill_count: usize,
     runtime_task_count: usize,
     active_task_count: usize,
+    runtime_assignment_count: usize,
+    execution_count: usize,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -655,6 +704,10 @@ fn print_governance_defaults_record(
     loaded_from: Option<&std::path::Path>,
 ) {
     println!("  policy_count: {}", record.governance_policy.len());
+    println!(
+        "  known_policy_keys: {}",
+        KNOWN_GOVERNANCE_POLICY_KEYS.join(", ")
+    );
     for (key, value) in &record.governance_policy {
         println!("  policy: {key}={value}");
     }
@@ -683,6 +736,7 @@ fn handle_governance_defaults_inspect(args: &[String]) -> ExitCode {
         let payload = GovernanceDefaultsInspectJson {
             policy_count: record.governance_policy.len(),
             governance_policy: &record.governance_policy,
+            known_policy_keys: KNOWN_GOVERNANCE_POLICY_KEYS,
             updated_at: record.updated_at.as_deref(),
             loaded_from: path.display().to_string(),
         };
@@ -805,7 +859,7 @@ fn handle_implementation_inspect(args: &[String]) -> ExitCode {
             return ExitCode::from(1);
         }
     };
-    let usage = summarize_implementation_usage(&skills, &tasks);
+    let usage = summarize_implementation_usage(root, &skills, &tasks);
     let guardrails =
         match summarize_guardrail_implementation_audits(root, None, Some(30 * 24 * 60 * 60 * 1000))
         {
@@ -848,6 +902,8 @@ fn handle_implementation_inspect(args: &[String]) -> ExitCode {
             recommended_by_skill_count: implementation_usage.recommended_by_skill_count,
             runtime_task_count: implementation_usage.runtime_task_count,
             active_task_count: implementation_usage.active_task_count,
+            runtime_assignment_count: implementation_usage.runtime_assignment_count,
+            execution_count: implementation_usage.execution_count,
             origin_source: record.origin.as_ref().map(|origin| origin.source.as_str()),
             origin_parent_impl: record
                 .origin
@@ -892,6 +948,11 @@ fn handle_implementation_inspect(args: &[String]) -> ExitCode {
         "  active_task_count: {}",
         implementation_usage.active_task_count
     );
+    println!(
+        "  runtime_assignment_count: {}",
+        implementation_usage.runtime_assignment_count
+    );
+    println!("  execution_count: {}", implementation_usage.execution_count);
     ExitCode::SUCCESS
 }
 
@@ -1109,7 +1170,9 @@ mod tests {
         assert_eq!(hotspots[0].severity_weight_recommended_by_source, "global");
         assert_eq!(hotspots[0].severity_weight_severe_flags_source, "built_in");
 
-        fs::remove_dir_all(root).expect("temp directory should be removed");
+        if root.exists() {
+            fs::remove_dir_all(root).expect("temp directory should be removed");
+        }
     }
 
     #[test]
@@ -1179,7 +1242,9 @@ mod tests {
             Some("4")
         );
 
-        fs::remove_dir_all(root).expect("temp directory should be removed");
+        if root.exists() {
+            fs::remove_dir_all(root).expect("temp directory should be removed");
+        }
     }
 
     #[test]
@@ -1239,7 +1304,9 @@ mod tests {
 
         assert_eq!(candidate.fitness_report.implementation_id(), "impl-safe");
 
-        fs::remove_dir_all(root).expect("temp directory should be removed");
+        if root.exists() {
+            fs::remove_dir_all(root).expect("temp directory should be removed");
+        }
     }
 
     #[test]
@@ -1287,7 +1354,9 @@ mod tests {
             "impl-low-penalty"
         );
 
-        fs::remove_dir_all(root).expect("temp directory should be removed");
+        if root.exists() {
+            fs::remove_dir_all(root).expect("temp directory should be removed");
+        }
     }
 
     #[test]
@@ -1546,16 +1615,29 @@ mod tests {
             sample_task("task-c", Some("impl-b"), TaskStatus::Running),
         ];
 
-        let summary = summarize_implementation_usage(&skills, &tasks);
+        let root = unique_test_root();
+        let summary = summarize_implementation_usage(
+            root.to_str().expect("root should be utf-8"),
+            &skills,
+            &tasks,
+        );
         let impl_a = summary.get("impl-a").expect("impl-a should exist");
         let impl_b = summary.get("impl-b").expect("impl-b should exist");
 
         assert_eq!(impl_a.recommended_by_skill_count, 1);
         assert_eq!(impl_a.runtime_task_count, 2);
         assert_eq!(impl_a.active_task_count, 1);
+        assert_eq!(impl_a.runtime_assignment_count, 0);
+        assert_eq!(impl_a.execution_count, 0);
         assert_eq!(impl_b.recommended_by_skill_count, 0);
         assert_eq!(impl_b.runtime_task_count, 1);
         assert_eq!(impl_b.active_task_count, 1);
+        assert_eq!(impl_b.runtime_assignment_count, 0);
+        assert_eq!(impl_b.execution_count, 0);
+
+        if root.exists() {
+            fs::remove_dir_all(root).expect("temp directory should be removed");
+        }
     }
 
     #[test]
@@ -1638,18 +1720,24 @@ mod tests {
             recommended_by_skill_count: 1,
             runtime_task_count: 4,
             active_task_count: 2,
+            runtime_assignment_count: 0,
+            execution_count: 0,
             flags: vec!["high_cost_budget".to_owned()],
             refresh_min_absolute_increase: 3,
             refresh_min_multiplier: 2.0,
             refresh_min_severity_delta: 3,
             severity_weight_recommended_by: 2,
             severity_weight_active_tasks: 2,
+            severity_weight_runtime_assignments: 1,
+            severity_weight_executions: 1,
             severity_weight_severe_flags: 1,
             refresh_min_absolute_increase_source: "built_in".to_owned(),
             refresh_min_multiplier_source: "built_in".to_owned(),
             refresh_min_severity_delta_source: "built_in".to_owned(),
             severity_weight_recommended_by_source: "built_in".to_owned(),
             severity_weight_active_tasks_source: "built_in".to_owned(),
+            severity_weight_runtime_assignments_source: "built_in".to_owned(),
+            severity_weight_executions_source: "built_in".to_owned(),
             severity_weight_severe_flags_source: "built_in".to_owned(),
         }];
         let mut detected_drifts = Vec::new();
@@ -1707,18 +1795,24 @@ mod tests {
             recommended_by_skill_count: 1,
             runtime_task_count: 4,
             active_task_count: 1,
+            runtime_assignment_count: 0,
+            execution_count: 0,
             flags: vec!["high_cost_budget".to_owned()],
             refresh_min_absolute_increase: 3,
             refresh_min_multiplier: 2.0,
             refresh_min_severity_delta: 3,
             severity_weight_recommended_by: 2,
             severity_weight_active_tasks: 2,
+            severity_weight_runtime_assignments: 1,
+            severity_weight_executions: 1,
             severity_weight_severe_flags: 1,
             refresh_min_absolute_increase_source: "built_in".to_owned(),
             refresh_min_multiplier_source: "built_in".to_owned(),
             refresh_min_severity_delta_source: "built_in".to_owned(),
             severity_weight_recommended_by_source: "built_in".to_owned(),
             severity_weight_active_tasks_source: "built_in".to_owned(),
+            severity_weight_runtime_assignments_source: "built_in".to_owned(),
+            severity_weight_executions_source: "built_in".to_owned(),
             severity_weight_severe_flags_source: "built_in".to_owned(),
         }];
 
@@ -1779,18 +1873,24 @@ mod tests {
             recommended_by_skill_count: 1,
             runtime_task_count: 4,
             active_task_count: 1,
+            runtime_assignment_count: 0,
+            execution_count: 0,
             flags: vec!["high_cost_budget".to_owned()],
             refresh_min_absolute_increase: 3,
             refresh_min_multiplier: 2.0,
             refresh_min_severity_delta: 3,
             severity_weight_recommended_by: 2,
             severity_weight_active_tasks: 2,
+            severity_weight_runtime_assignments: 1,
+            severity_weight_executions: 1,
             severity_weight_severe_flags: 1,
             refresh_min_absolute_increase_source: "built_in".to_owned(),
             refresh_min_multiplier_source: "built_in".to_owned(),
             refresh_min_severity_delta_source: "built_in".to_owned(),
             severity_weight_recommended_by_source: "built_in".to_owned(),
             severity_weight_active_tasks_source: "built_in".to_owned(),
+            severity_weight_runtime_assignments_source: "built_in".to_owned(),
+            severity_weight_executions_source: "built_in".to_owned(),
             severity_weight_severe_flags_source: "built_in".to_owned(),
         }];
 
@@ -1835,6 +1935,8 @@ mod tests {
             recommended_by_skill_count: 2,
             runtime_task_count: 5,
             active_task_count: 2,
+            runtime_assignment_count: 0,
+            execution_count: 0,
             flags: vec![
                 "high_cost_budget".to_owned(),
                 "high_latency_budget".to_owned(),
@@ -1844,12 +1946,16 @@ mod tests {
             refresh_min_severity_delta: 3,
             severity_weight_recommended_by: 2,
             severity_weight_active_tasks: 2,
+            severity_weight_runtime_assignments: 1,
+            severity_weight_executions: 1,
             severity_weight_severe_flags: 1,
             refresh_min_absolute_increase_source: "built_in".to_owned(),
             refresh_min_multiplier_source: "built_in".to_owned(),
             refresh_min_severity_delta_source: "built_in".to_owned(),
             severity_weight_recommended_by_source: "built_in".to_owned(),
             severity_weight_active_tasks_source: "built_in".to_owned(),
+            severity_weight_runtime_assignments_source: "built_in".to_owned(),
+            severity_weight_executions_source: "built_in".to_owned(),
             severity_weight_severe_flags_source: "built_in".to_owned(),
         }];
 
@@ -1894,18 +2000,24 @@ mod tests {
             recommended_by_skill_count: 1,
             runtime_task_count: 4,
             active_task_count: 1,
+            runtime_assignment_count: 0,
+            execution_count: 0,
             flags: vec!["high_cost_budget".to_owned()],
             refresh_min_absolute_increase: 10,
             refresh_min_multiplier: 10.0,
             refresh_min_severity_delta: 10,
             severity_weight_recommended_by: 1,
             severity_weight_active_tasks: 1,
+            severity_weight_runtime_assignments: 1,
+            severity_weight_executions: 1,
             severity_weight_severe_flags: 1,
             refresh_min_absolute_increase_source: "implementation".to_owned(),
             refresh_min_multiplier_source: "implementation".to_owned(),
             refresh_min_severity_delta_source: "implementation".to_owned(),
             severity_weight_recommended_by_source: "implementation".to_owned(),
             severity_weight_active_tasks_source: "implementation".to_owned(),
+            severity_weight_runtime_assignments_source: "implementation".to_owned(),
+            severity_weight_executions_source: "implementation".to_owned(),
             severity_weight_severe_flags_source: "implementation".to_owned(),
         }];
 
@@ -1923,7 +2035,7 @@ mod tests {
             false,
             ArchitectureReviewStatus::Open,
             ArchitectureReviewDecision::NeedsRedesign,
-            "implementation impl-hot triggered 2 recent guardrail blocks for extreme_cost_budget while recommended_by=1 active_tasks=1 severe_flags=1 refresh_min_absolute_increase=10 refresh_min_multiplier=10 refresh_min_severity_delta=10 severity_weight_recommended_by=1 severity_weight_active_tasks=1 severity_weight_severe_flags=1".to_owned(),
+            "implementation impl-hot triggered 2 recent guardrail blocks for extreme_cost_budget while recommended_by=1 active_tasks=1 assignments=0 executions=0 severe_flags=1 refresh_min_absolute_increase=10 refresh_min_multiplier=10 refresh_min_severity_delta=10 severity_weight_recommended_by=1 severity_weight_active_tasks=1 severity_weight_runtime_assignments=1 severity_weight_executions=1 severity_weight_severe_flags=1".to_owned(),
             vec![],
             vec![],
             None,
@@ -1934,6 +2046,71 @@ mod tests {
         assert_eq!(suggestions.len(), 1);
         assert_eq!(suggestions[0].suggestion_state, "existing");
         assert!(suggestions[0].already_recorded);
+    }
+
+    #[test]
+    fn build_review_suggestions_refreshes_when_assignment_and_execution_pressure_increases() {
+        let hotspots = vec![RegistryOverviewImplementationHotspotJson {
+            implementation_id: "impl-hot".to_owned(),
+            skill_id: "xhs_publish".to_owned(),
+            executor: "worker_process".to_owned(),
+            recent_guardrail_block_count: 3,
+            top_reason: "extreme_cost_budget".to_owned(),
+            recommended_by_skill_count: 1,
+            runtime_task_count: 4,
+            active_task_count: 1,
+            runtime_assignment_count: 3,
+            execution_count: 4,
+            flags: vec!["high_cost_budget".to_owned()],
+            refresh_min_absolute_increase: 10,
+            refresh_min_multiplier: 10.0,
+            refresh_min_severity_delta: 3,
+            severity_weight_recommended_by: 1,
+            severity_weight_active_tasks: 1,
+            severity_weight_runtime_assignments: 2,
+            severity_weight_executions: 2,
+            severity_weight_severe_flags: 1,
+            refresh_min_absolute_increase_source: "implementation".to_owned(),
+            refresh_min_multiplier_source: "implementation".to_owned(),
+            refresh_min_severity_delta_source: "implementation".to_owned(),
+            severity_weight_recommended_by_source: "implementation".to_owned(),
+            severity_weight_active_tasks_source: "implementation".to_owned(),
+            severity_weight_runtime_assignments_source: "implementation".to_owned(),
+            severity_weight_executions_source: "implementation".to_owned(),
+            severity_weight_severe_flags_source: "implementation".to_owned(),
+        }];
+
+        let existing = vec![ArchitectureReviewRecord::new(
+            "review-impl-hot-guardrail-hotspot".to_owned(),
+            "guardrail hotspot review for impl-hot".to_owned(),
+            "implementation_guardrail_hotspot".to_owned(),
+            "system-guardrail".to_owned(),
+            ReviewTargetPlane::Evolution,
+            vec!["governance".to_owned()],
+            false,
+            true,
+            false,
+            true,
+            false,
+            ArchitectureReviewStatus::Open,
+            ArchitectureReviewDecision::NeedsRedesign,
+            "implementation impl-hot triggered 2 recent guardrail blocks for extreme_cost_budget while recommended_by=1 active_tasks=1 assignments=1 executions=1 severe_flags=1 refresh_min_absolute_increase=10 refresh_min_multiplier=10 refresh_min_severity_delta=3 severity_weight_recommended_by=1 severity_weight_active_tasks=1 severity_weight_runtime_assignments=2 severity_weight_executions=2 severity_weight_severe_flags=1".to_owned(),
+            vec![],
+            vec![],
+            None,
+        )];
+
+        let suggestions = build_review_suggestions(&hotspots, &existing);
+
+        assert_eq!(suggestions.len(), 1);
+        assert_eq!(suggestions[0].suggestion_state, "worsened");
+        assert!(suggestions[0].rationale.contains("assignments=3"));
+        assert!(suggestions[0].rationale.contains("executions=4"));
+        assert!(
+            suggestions[0]
+                .rationale
+                .contains("severity_weight_runtime_assignments=2")
+        );
     }
 
     #[test]
@@ -2263,7 +2440,7 @@ fn handle_implementation_list(args: &[String]) -> ExitCode {
             return ExitCode::from(1);
         }
     };
-    let usage = summarize_implementation_usage(&skills, &tasks);
+    let usage = summarize_implementation_usage(root, &skills, &tasks);
     let guardrails =
         match summarize_guardrail_implementation_audits(root, None, Some(30 * 24 * 60 * 60 * 1000))
         {
@@ -2291,7 +2468,7 @@ fn handle_implementation_list(args: &[String]) -> ExitCode {
             .cloned()
             .unwrap_or_default();
         println!(
-            "  - {} skill={} executor={} entry={} capability={} mode={} max_cost={} max_latency_ms={} guardrails={} top_reason={} recommended_by={} runtime_tasks={} active_tasks={} flags={} origin={}",
+            "  - {} skill={} executor={} entry={} capability={} mode={} max_cost={} max_latency_ms={} guardrails={} top_reason={} recommended_by={} runtime_tasks={} active_tasks={} assignments={} executions={} flags={} origin={}",
             record.implementation_id,
             record.skill_id,
             record.executor,
@@ -2308,6 +2485,8 @@ fn handle_implementation_list(args: &[String]) -> ExitCode {
             implementation_usage.recommended_by_skill_count,
             implementation_usage.runtime_task_count,
             implementation_usage.active_task_count,
+            implementation_usage.runtime_assignment_count,
+            implementation_usage.execution_count,
             if flags.is_empty() {
                 "<none>".to_owned()
             } else {
@@ -3411,6 +3590,7 @@ fn extract_guardrail_implementation(payload: &str) -> Option<String> {
 }
 
 fn summarize_implementation_usage(
+    root: &str,
     skills: &[SkillRecord],
     tasks: &[TaskRecord],
 ) -> std::collections::BTreeMap<String, ImplementationUsageSummary> {
@@ -3424,13 +3604,42 @@ fn summarize_implementation_usage(
         }
     }
     for task in tasks {
-        let Some(implementation_id) = &task.task_spec.implementation_ref else {
+        let Some(implementation_id) = runtime_task_implementation_id(task) else {
             continue;
         };
-        let entry = usage.entry(implementation_id.clone()).or_default();
+        let entry = usage.entry(implementation_id.to_owned()).or_default();
         entry.runtime_task_count += 1;
         if task.task_runtime.status.as_str() != "completed" {
             entry.active_task_count += 1;
+        }
+
+        if let Ok((_, assignments)) = load_task_assignments(root, &task.task_spec.task_id) {
+            for assignment in assignments {
+                let Some(assignment_implementation_id) =
+                    runtime_assignment_implementation_id(&assignment)
+                else {
+                    continue;
+                };
+                usage.entry(assignment_implementation_id.to_owned())
+                    .or_default()
+                    .runtime_assignment_count += 1;
+            }
+        }
+    }
+
+    if let Ok((_, execution_records)) = list_execution_records(root) {
+        for record in execution_records {
+            let Some(execution_implementation_id) = record
+                .implementation_snapshot
+                .as_ref()
+                .map(|snapshot| snapshot.implementation_id.as_str())
+                .or(record.implementation_ref.as_deref())
+            else {
+                continue;
+            };
+            usage.entry(execution_implementation_id.to_owned())
+                .or_default()
+                .execution_count += 1;
         }
     }
     usage
@@ -3515,7 +3724,7 @@ fn collect_implementation_hotspots(
         .iter()
         .map(|skill| (skill.skill_id.clone(), skill.governance_policy.clone()))
         .collect::<std::collections::BTreeMap<_, _>>();
-    let implementation_context = summarize_implementation_usage(&skills, &tasks);
+    let implementation_context = summarize_implementation_usage(root, &skills, &tasks);
     let implementation_guardrails =
         summarize_guardrail_implementation_audits(root, end_timestamp, window_ms)?;
 
@@ -3533,7 +3742,11 @@ fn collect_implementation_hotspots(
             if guardrail.recent_guardrail_block_count == 0 {
                 return None;
             }
-            if usage.recommended_by_skill_count == 0 && usage.active_task_count == 0 {
+            if usage.recommended_by_skill_count == 0
+                && usage.active_task_count == 0
+                && usage.runtime_assignment_count == 0
+                && usage.execution_count == 0
+            {
                 return None;
             }
             let governed = GovernedImplementation::from_record(record);
@@ -3578,6 +3791,22 @@ fn collect_implementation_hotspots(
                     "review_severity_weight_active_tasks",
                     2,
                 );
+            let (severity_weight_runtime_assignments, severity_weight_runtime_assignments_source) =
+                resolve_usize_setting_with_source(
+                    &record.constraints,
+                    skill_policy,
+                    Some(&global_policy),
+                    "review_severity_weight_runtime_assignments",
+                    1,
+                );
+            let (severity_weight_executions, severity_weight_executions_source) =
+                resolve_usize_setting_with_source(
+                    &record.constraints,
+                    skill_policy,
+                    Some(&global_policy),
+                    "review_severity_weight_executions",
+                    1,
+                );
             let (severity_weight_severe_flags, severity_weight_severe_flags_source) =
                 resolve_usize_setting_with_source(
                     &record.constraints,
@@ -3595,12 +3824,16 @@ fn collect_implementation_hotspots(
                 recommended_by_skill_count: usage.recommended_by_skill_count,
                 runtime_task_count: usage.runtime_task_count,
                 active_task_count: usage.active_task_count,
+                runtime_assignment_count: usage.runtime_assignment_count,
+                execution_count: usage.execution_count,
                 flags: implementation_governance_flags(&governed),
                 refresh_min_absolute_increase,
                 refresh_min_multiplier,
                 refresh_min_severity_delta,
                 severity_weight_recommended_by,
                 severity_weight_active_tasks,
+                severity_weight_runtime_assignments,
+                severity_weight_executions,
                 severity_weight_severe_flags,
                 refresh_min_absolute_increase_source: refresh_min_absolute_increase_source
                     .to_owned(),
@@ -3609,6 +3842,9 @@ fn collect_implementation_hotspots(
                 severity_weight_recommended_by_source: severity_weight_recommended_by_source
                     .to_owned(),
                 severity_weight_active_tasks_source: severity_weight_active_tasks_source.to_owned(),
+                severity_weight_runtime_assignments_source: severity_weight_runtime_assignments_source
+                    .to_owned(),
+                severity_weight_executions_source: severity_weight_executions_source.to_owned(),
                 severity_weight_severe_flags_source: severity_weight_severe_flags_source.to_owned(),
             })
         })
@@ -3616,6 +3852,8 @@ fn collect_implementation_hotspots(
     implementation_hotspot_rows.sort_by(|a, b| {
         b.recent_guardrail_block_count
             .cmp(&a.recent_guardrail_block_count)
+            .then_with(|| b.execution_count.cmp(&a.execution_count))
+            .then_with(|| b.runtime_assignment_count.cmp(&a.runtime_assignment_count))
             .then_with(|| {
                 b.recommended_by_skill_count
                     .cmp(&a.recommended_by_skill_count)
@@ -3646,11 +3884,13 @@ fn enrich_reflection_inputs_from_hotspots(
         push_unique(
             detected_drifts,
             format!(
-                "implementation {} triggered {} recent guardrail blocks while still recommended_by={} active_tasks={}",
+                "implementation {} triggered {} recent guardrail blocks while still recommended_by={} active_tasks={} assignments={} executions={}",
                 hotspot.implementation_id,
                 hotspot.recent_guardrail_block_count,
                 hotspot.recommended_by_skill_count,
-                hotspot.active_task_count
+                hotspot.active_task_count,
+                hotspot.runtime_assignment_count,
+                hotspot.execution_count
             ),
         );
         push_unique(
@@ -3675,6 +3915,24 @@ fn enrich_reflection_inputs_from_hotspots(
                 format!(
                     "inspect active tasks bound to implementation {} because {} tasks are still running behind a guardrail hotspot",
                     hotspot.implementation_id, hotspot.active_task_count
+                ),
+            );
+        }
+        if hotspot.runtime_assignment_count > 0 {
+            push_unique(
+                next_actions,
+                format!(
+                    "inspect runtime assignments bound to implementation {} because {} assignments still point at a guardrail hotspot",
+                    hotspot.implementation_id, hotspot.runtime_assignment_count
+                ),
+            );
+        }
+        if hotspot.execution_count > 0 {
+            push_unique(
+                next_actions,
+                format!(
+                    "inspect recent execution records for implementation {} because {} executions passed through a guardrail hotspot",
+                    hotspot.implementation_id, hotspot.execution_count
                 ),
             );
         }
@@ -3713,6 +3971,24 @@ fn enrich_review_inputs_from_hotspots(
                 format!(
                     "inspect {} active task(s) still using implementation {} before approving further rollout",
                     hotspot.active_task_count, hotspot.implementation_id
+                ),
+            );
+        }
+        if hotspot.runtime_assignment_count > 0 {
+            push_unique(
+                required_followups,
+                format!(
+                    "inspect {} assignment(s) still bound to implementation {} before approving further rollout",
+                    hotspot.runtime_assignment_count, hotspot.implementation_id
+                ),
+            );
+        }
+        if hotspot.execution_count > 0 {
+            push_unique(
+                required_followups,
+                format!(
+                    "review {} recent execution record(s) for implementation {} before approving further rollout",
+                    hotspot.execution_count, hotspot.implementation_id
                 ),
             );
         }
@@ -3763,14 +4039,20 @@ fn hotspot_severity_score(
     guardrail_count: usize,
     recommended_by_skill_count: usize,
     active_task_count: usize,
+    runtime_assignment_count: usize,
+    execution_count: usize,
     severe_flag_count: usize,
     recommended_by_weight: usize,
     active_task_weight: usize,
+    runtime_assignment_weight: usize,
+    execution_weight: usize,
     severe_flag_weight: usize,
 ) -> usize {
     guardrail_count
         + (recommended_by_skill_count * recommended_by_weight)
         + (active_task_count * active_task_weight)
+        + (runtime_assignment_count * runtime_assignment_weight)
+        + (execution_count * execution_weight)
         + (severe_flag_count * severe_flag_weight)
 }
 
@@ -3781,6 +4063,10 @@ fn hotspot_has_meaningful_guardrail_increase(
     previous_recommended_by: usize,
     current_active_tasks: usize,
     previous_active_tasks: usize,
+    current_runtime_assignments: usize,
+    previous_runtime_assignments: usize,
+    current_executions: usize,
+    previous_executions: usize,
     current_severe_flags: usize,
     previous_severe_flags: usize,
     min_absolute_increase: usize,
@@ -3788,11 +4074,15 @@ fn hotspot_has_meaningful_guardrail_increase(
     min_severity_delta: usize,
     recommended_by_weight: usize,
     active_task_weight: usize,
+    runtime_assignment_weight: usize,
+    execution_weight: usize,
     severe_flag_weight: usize,
 ) -> bool {
     if current_count <= previous_count
         && current_recommended_by <= previous_recommended_by
         && current_active_tasks <= previous_active_tasks
+        && current_runtime_assignments <= previous_runtime_assignments
+        && current_executions <= previous_executions
         && current_severe_flags <= previous_severe_flags
     {
         return false;
@@ -3810,18 +4100,26 @@ fn hotspot_has_meaningful_guardrail_increase(
         current_count,
         current_recommended_by,
         current_active_tasks,
+        current_runtime_assignments,
+        current_executions,
         current_severe_flags,
         recommended_by_weight,
         active_task_weight,
+        runtime_assignment_weight,
+        execution_weight,
         severe_flag_weight,
     );
     let previous_severity = hotspot_severity_score(
         previous_count,
         previous_recommended_by,
         previous_active_tasks,
+        previous_runtime_assignments,
+        previous_executions,
         previous_severe_flags,
         recommended_by_weight,
         active_task_weight,
+        runtime_assignment_weight,
+        execution_weight,
         severe_flag_weight,
     );
     current_severity >= previous_severity.saturating_add(min_severity_delta)
@@ -3875,6 +4173,10 @@ fn build_review_suggestions(
                 .and_then(|review| parse_rationale_metric(&review.rationale, "recommended_by"));
             let latest_active_tasks =
                 latest_review.and_then(|review| parse_rationale_metric(&review.rationale, "active_tasks"));
+            let latest_runtime_assignments =
+                latest_review.and_then(|review| parse_rationale_metric(&review.rationale, "assignments"));
+            let latest_executions =
+                latest_review.and_then(|review| parse_rationale_metric(&review.rationale, "executions"));
             let latest_severe_flags =
                 latest_review.and_then(|review| parse_rationale_metric(&review.rationale, "severe_flags"));
             let current_severe_flags = severe_hotspot_flag_count(&hotspot.flags);
@@ -3889,6 +4191,10 @@ fn build_review_suggestions(
                                 latest_recommended_by.unwrap_or(0),
                                 hotspot.active_task_count,
                                 latest_active_tasks.unwrap_or(0),
+                                hotspot.runtime_assignment_count,
+                                latest_runtime_assignments.unwrap_or(0),
+                                hotspot.execution_count,
+                                latest_executions.unwrap_or(0),
                                 current_severe_flags,
                                 latest_severe_flags.unwrap_or(0),
                                 hotspot.refresh_min_absolute_increase,
@@ -3896,6 +4202,8 @@ fn build_review_suggestions(
                                 hotspot.refresh_min_severity_delta,
                                 hotspot.severity_weight_recommended_by,
                                 hotspot.severity_weight_active_tasks,
+                                hotspot.severity_weight_runtime_assignments,
+                                hotspot.severity_weight_executions,
                                 hotspot.severity_weight_severe_flags,
                             )
                         }) =>
@@ -3923,7 +4231,11 @@ fn build_review_suggestions(
                 std::slice::from_ref(hotspot),
             );
             let proposed_decision =
-                if hotspot.recommended_by_skill_count > 0 || hotspot.active_task_count > 0 {
+                if hotspot.recommended_by_skill_count > 0
+                    || hotspot.active_task_count > 0
+                    || hotspot.runtime_assignment_count > 0
+                    || hotspot.execution_count > 0
+                {
                     "needs_redesign"
                 } else {
                     "pass_with_followup"
@@ -3940,18 +4252,22 @@ fn build_review_suggestions(
                 target_plane: "evolution".to_owned(),
                 target_modules: vec!["governance".to_owned(), "registry".to_owned()],
                 rationale: format!(
-                    "implementation {} triggered {} recent guardrail blocks for {} while recommended_by={} active_tasks={} severe_flags={} refresh_min_absolute_increase={} refresh_min_multiplier={} refresh_min_severity_delta={} severity_weight_recommended_by={} severity_weight_active_tasks={} severity_weight_severe_flags={}",
+                    "implementation {} triggered {} recent guardrail blocks for {} while recommended_by={} active_tasks={} assignments={} executions={} severe_flags={} refresh_min_absolute_increase={} refresh_min_multiplier={} refresh_min_severity_delta={} severity_weight_recommended_by={} severity_weight_active_tasks={} severity_weight_runtime_assignments={} severity_weight_executions={} severity_weight_severe_flags={}",
                     hotspot.implementation_id,
                     hotspot.recent_guardrail_block_count,
                     hotspot.top_reason,
                     hotspot.recommended_by_skill_count,
                     hotspot.active_task_count,
+                    hotspot.runtime_assignment_count,
+                    hotspot.execution_count,
                     current_severe_flags,
                     hotspot.refresh_min_absolute_increase,
                     hotspot.refresh_min_multiplier,
                     hotspot.refresh_min_severity_delta,
                     hotspot.severity_weight_recommended_by,
                     hotspot.severity_weight_active_tasks,
+                    hotspot.severity_weight_runtime_assignments,
+                    hotspot.severity_weight_executions,
                     hotspot.severity_weight_severe_flags
                 ),
                 proposed_decision: proposed_decision.to_owned(),
@@ -4881,7 +5197,7 @@ fn handle_registry_overview(args: &[String]) -> ExitCode {
         .count();
     let implementation_bound_task_count = tasks
         .iter()
-        .filter(|task| task.task_spec.implementation_ref.is_some())
+        .filter(|task| runtime_task_implementation_id(task).is_some())
         .count();
 
     let mut assignment_count = 0usize;
@@ -4890,9 +5206,9 @@ fn handle_registry_overview(args: &[String]) -> ExitCode {
     let mut skill_usage = std::collections::BTreeMap::<String, usize>::new();
     let mut tool_usage = std::collections::BTreeMap::<String, usize>::new();
     for task in &tasks {
-        if let Some(implementation_ref) = &task.task_spec.implementation_ref {
+        if let Some(implementation_ref) = runtime_task_implementation_id(task) {
             *implementation_usage
-                .entry(implementation_ref.clone())
+                .entry(implementation_ref.to_owned())
                 .or_insert(0) += 1;
         }
         for skill_ref in &task.task_spec.skill_refs {
@@ -5145,7 +5461,7 @@ fn handle_registry_overview(args: &[String]) -> ExitCode {
         let mut unbound_tasks_no_skill = Vec::new();
         let mut unbound_tasks_missing_recommendation = Vec::new();
         for task in &tasks {
-            if task.task_spec.implementation_ref.is_some() {
+            if runtime_task_implementation_id(task).is_some() {
                 continue;
             }
             if task.task_spec.skill_refs.is_empty() {
@@ -5208,7 +5524,7 @@ fn handle_registry_overview(args: &[String]) -> ExitCode {
     };
 
     let details = if with_details {
-        let implementation_context = summarize_implementation_usage(&skills, &tasks);
+        let implementation_context = summarize_implementation_usage(root, &skills, &tasks);
         let global_policy = load_governance_defaults(root)
             .ok()
             .map(|(_, defaults)| defaults.governance_policy)
@@ -5296,7 +5612,11 @@ fn handle_registry_overview(args: &[String]) -> ExitCode {
                 if guardrail.recent_guardrail_block_count == 0 {
                     return None;
                 }
-                if usage.recommended_by_skill_count == 0 && usage.active_task_count == 0 {
+                if usage.recommended_by_skill_count == 0
+                    && usage.active_task_count == 0
+                    && usage.runtime_assignment_count == 0
+                    && usage.execution_count == 0
+                {
                     return None;
                 }
                 let governed = GovernedImplementation::from_record(record);
@@ -5341,6 +5661,24 @@ fn handle_registry_overview(args: &[String]) -> ExitCode {
                         "review_severity_weight_active_tasks",
                         2,
                     );
+                let (
+                    severity_weight_runtime_assignments,
+                    severity_weight_runtime_assignments_source,
+                ) = resolve_usize_setting_with_source(
+                    &record.constraints,
+                    skill_policy,
+                    Some(&global_policy),
+                    "review_severity_weight_runtime_assignments",
+                    1,
+                );
+                let (severity_weight_executions, severity_weight_executions_source) =
+                    resolve_usize_setting_with_source(
+                        &record.constraints,
+                        skill_policy,
+                        Some(&global_policy),
+                        "review_severity_weight_executions",
+                        1,
+                    );
                 let (severity_weight_severe_flags, severity_weight_severe_flags_source) =
                     resolve_usize_setting_with_source(
                         &record.constraints,
@@ -5358,12 +5696,16 @@ fn handle_registry_overview(args: &[String]) -> ExitCode {
                     recommended_by_skill_count: usage.recommended_by_skill_count,
                     runtime_task_count: usage.runtime_task_count,
                     active_task_count: usage.active_task_count,
+                    runtime_assignment_count: usage.runtime_assignment_count,
+                    execution_count: usage.execution_count,
                     flags: implementation_governance_flags(&governed),
                     refresh_min_absolute_increase,
                     refresh_min_multiplier,
                     refresh_min_severity_delta,
                     severity_weight_recommended_by,
                     severity_weight_active_tasks,
+                    severity_weight_runtime_assignments,
+                    severity_weight_executions,
                     severity_weight_severe_flags,
                     refresh_min_absolute_increase_source: refresh_min_absolute_increase_source
                         .to_owned(),
@@ -5373,6 +5715,10 @@ fn handle_registry_overview(args: &[String]) -> ExitCode {
                         .to_owned(),
                     severity_weight_active_tasks_source: severity_weight_active_tasks_source
                         .to_owned(),
+                    severity_weight_runtime_assignments_source:
+                        severity_weight_runtime_assignments_source.to_owned(),
+                    severity_weight_executions_source: severity_weight_executions_source
+                        .to_owned(),
                     severity_weight_severe_flags_source: severity_weight_severe_flags_source
                         .to_owned(),
                 })
@@ -5381,6 +5727,8 @@ fn handle_registry_overview(args: &[String]) -> ExitCode {
         implementation_hotspot_rows.sort_by(|a, b| {
             b.recent_guardrail_block_count
                 .cmp(&a.recent_guardrail_block_count)
+                .then_with(|| b.execution_count.cmp(&a.execution_count))
+                .then_with(|| b.runtime_assignment_count.cmp(&a.runtime_assignment_count))
                 .then_with(|| {
                     b.recommended_by_skill_count
                         .cmp(&a.recommended_by_skill_count)
@@ -5390,19 +5738,32 @@ fn handle_registry_overview(args: &[String]) -> ExitCode {
         });
         let mut implementation_usage_rows = implementation_usage
             .iter()
-            .map(|(id, count)| RegistryOverviewUsageJson {
-                id: id.clone(),
-                task_count: *count,
+            .map(|(id, _count)| {
+                let usage = implementation_context.get(id).cloned().unwrap_or_default();
+                RegistryOverviewImplementationUsageJson {
+                    implementation_id: id.clone(),
+                    recommended_by_skill_count: usage.recommended_by_skill_count,
+                    runtime_task_count: usage.runtime_task_count,
+                    active_task_count: usage.active_task_count,
+                    runtime_assignment_count: usage.runtime_assignment_count,
+                    execution_count: usage.execution_count,
+                }
             })
             .collect::<Vec<_>>();
         implementation_usage_rows.sort_by(|a, b| {
-            b.task_count
-                .cmp(&a.task_count)
-                .then_with(|| a.id.cmp(&b.id))
+            b.runtime_task_count
+                .cmp(&a.runtime_task_count)
+                .then_with(|| b.runtime_assignment_count.cmp(&a.runtime_assignment_count))
+                .then_with(|| b.execution_count.cmp(&a.execution_count))
+                .then_with(|| {
+                    b.recommended_by_skill_count
+                        .cmp(&a.recommended_by_skill_count)
+                })
+                .then_with(|| a.implementation_id.cmp(&b.implementation_id))
         });
         let mut skill_usage_rows = skill_usage
             .iter()
-            .map(|(id, count)| RegistryOverviewUsageJson {
+            .map(|(id, count)| RegistryOverviewCountJson {
                 id: id.clone(),
                 task_count: *count,
             })
@@ -5414,7 +5775,7 @@ fn handle_registry_overview(args: &[String]) -> ExitCode {
         });
         let mut tool_usage_rows = tool_usage
             .iter()
-            .map(|(id, count)| RegistryOverviewUsageJson {
+            .map(|(id, count)| RegistryOverviewCountJson {
                 id: id.clone(),
                 task_count: *count,
             })
@@ -5732,8 +6093,13 @@ fn handle_registry_overview(args: &[String]) -> ExitCode {
         }
         for row in &details.implementation_usage {
             println!(
-                "  implementation_usage: implementation={} task_count={}",
-                row.id, row.task_count
+                "  implementation_usage: implementation={} recommended_by={} runtime_tasks={} active_tasks={} assignments={} executions={}",
+                row.implementation_id,
+                row.recommended_by_skill_count,
+                row.runtime_task_count,
+                row.active_task_count,
+                row.runtime_assignment_count,
+                row.execution_count
             );
         }
         println!(
@@ -5772,7 +6138,7 @@ fn handle_registry_overview(args: &[String]) -> ExitCode {
         );
         for row in &details.implementation_hotspots {
             println!(
-                "  implementation_hotspot: implementation={} skill={} executor={} guardrails={} top_reason={} recommended_by={} runtime_tasks={} active_tasks={} flags={} refresh_abs={}({}) refresh_multiplier={}({}) refresh_severity_delta={}({}) weight_recommended_by={}({}) weight_active_tasks={}({}) weight_severe_flags={}({})",
+                "  implementation_hotspot: implementation={} skill={} executor={} guardrails={} top_reason={} recommended_by={} runtime_tasks={} active_tasks={} assignments={} executions={} flags={} refresh_abs={}({}) refresh_multiplier={}({}) refresh_severity_delta={}({}) weight_recommended_by={}({}) weight_active_tasks={}({}) weight_runtime_assignments={}({}) weight_executions={}({}) weight_severe_flags={}({})",
                 row.implementation_id,
                 row.skill_id,
                 row.executor,
@@ -5781,6 +6147,8 @@ fn handle_registry_overview(args: &[String]) -> ExitCode {
                 row.recommended_by_skill_count,
                 row.runtime_task_count,
                 row.active_task_count,
+                row.runtime_assignment_count,
+                row.execution_count,
                 if row.flags.is_empty() {
                     "<none>".to_owned()
                 } else {
@@ -5796,6 +6164,10 @@ fn handle_registry_overview(args: &[String]) -> ExitCode {
                 row.severity_weight_recommended_by_source,
                 row.severity_weight_active_tasks,
                 row.severity_weight_active_tasks_source,
+                row.severity_weight_runtime_assignments,
+                row.severity_weight_runtime_assignments_source,
+                row.severity_weight_executions,
+                row.severity_weight_executions_source,
                 row.severity_weight_severe_flags,
                 row.severity_weight_severe_flags_source
             );

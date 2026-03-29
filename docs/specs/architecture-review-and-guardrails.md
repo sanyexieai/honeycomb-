@@ -258,8 +258,10 @@ Honeycomb 当前设计强调：
 
 当前这层全局默认策略已经可通过 `honeycomb-evolution governance-defaults inspect` 直接查看。
 同时也已可通过 `honeycomb-evolution governance-defaults set` 做最小增量治理调整。
+`governance-defaults inspect` 当前也会直接列出系统已知治理策略键，便于确认哪些 refresh / 严重性参数可由全局策略层接管。
 此外，`honeycomb-evolution registry overview --with-details` 也已会带出当前全局治理默认策略摘要，便于在总览里观察系统底线。
 同一总览中的 implementation hotspot 现在也会标明每个 refresh / 严重性参数来自哪一层策略来源，便于排查“为什么这次命中了这套护栏”。
+对 `runtime_assignment` 与 `execution` 两个新严重性维度，也会直接显示权重值及其来源层，方便解释“为什么同样的 guardrail 次数，这个实现体会更快触发 refresh review”。
 
 ## 11. 定期反思机制
 

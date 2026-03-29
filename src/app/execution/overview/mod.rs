@@ -4,6 +4,78 @@ use super::common_support::*;
 use super::control::*;
 use super::*;
 use support::*;
+use crate::runtime::TaskRecord;
+
+#[derive(Default, Clone)]
+struct ImplementationUsageSummary {
+    runtime_task_count: usize,
+    active_task_count: usize,
+    runtime_assignment_count: usize,
+    execution_count: usize,
+}
+
+fn task_implementation_id(task: &TaskRecord) -> Option<&str> {
+    task.task_spec
+        .implementation_snapshot
+        .as_ref()
+        .map(|snapshot| snapshot.implementation_id.as_str())
+        .or(task.task_spec.implementation_ref.as_deref())
+}
+
+fn assignment_implementation_id(assignment: &Assignment) -> Option<&str> {
+    assignment
+        .implementation_snapshot
+        .as_ref()
+        .map(|snapshot| snapshot.implementation_id.as_str())
+        .or(assignment.implementation_ref.as_deref())
+}
+
+fn execution_implementation_id(record: &ExecutionRecord) -> Option<&str> {
+    record
+        .implementation_snapshot
+        .as_ref()
+        .map(|snapshot| snapshot.implementation_id.as_str())
+        .or(record.implementation_ref.as_deref())
+}
+
+fn summarize_runtime_implementation_usage(
+    root: &str,
+    tasks: &[TaskRecord],
+) -> std::io::Result<std::collections::BTreeMap<String, ImplementationUsageSummary>> {
+    let mut usage = std::collections::BTreeMap::<String, ImplementationUsageSummary>::new();
+
+    for task in tasks {
+        if let Some(implementation_id) = task_implementation_id(task) {
+            let entry = usage.entry(implementation_id.to_owned()).or_default();
+            entry.runtime_task_count += 1;
+            if task.task_runtime.status.as_str() != "completed" {
+                entry.active_task_count += 1;
+            }
+        }
+
+        let (_, assignments) = load_task_assignments(root, &task.task_spec.task_id)?;
+        for assignment in assignments {
+            let Some(implementation_id) = assignment_implementation_id(&assignment) else {
+                continue;
+            };
+            usage.entry(implementation_id.to_owned())
+                .or_default()
+                .runtime_assignment_count += 1;
+        }
+    }
+
+    let (_, execution_records) = list_execution_records(root)?;
+    for record in execution_records {
+        let Some(implementation_id) = execution_implementation_id(&record) else {
+            continue;
+        };
+        usage.entry(implementation_id.to_owned())
+            .or_default()
+            .execution_count += 1;
+    }
+
+    Ok(usage)
+}
 
 pub(crate) fn handle_runtime_overview(args: &[String]) -> ExitCode {
     let with_details = has_flag(args, "--with-details");
@@ -37,7 +109,13 @@ pub(crate) fn handle_runtime_overview(args: &[String]) -> ExitCode {
     let mut trigger_count = 0usize;
     let mut audit_count = 0usize;
     let mut trace_count = 0usize;
-    let mut implementation_usage = std::collections::BTreeMap::<String, usize>::new();
+    let implementation_usage = match summarize_runtime_implementation_usage(root, &tasks) {
+        Ok(value) => value,
+        Err(error) => {
+            eprintln!("failed to summarize runtime implementation usage: {error}");
+            return ExitCode::from(1);
+        }
+    };
     let mut task_status_counts = std::collections::BTreeMap::<String, usize>::new();
     let mut assignment_status_counts = std::collections::BTreeMap::<String, usize>::new();
     let mut resident_status_counts = std::collections::BTreeMap::<String, usize>::new();
@@ -59,11 +137,6 @@ pub(crate) fn handle_runtime_overview(args: &[String]) -> ExitCode {
     )>::new();
 
     for task in &tasks {
-        if let Some(implementation_ref) = &task.task_spec.implementation_ref {
-            *implementation_usage
-                .entry(implementation_ref.clone())
-                .or_insert(0) += 1;
-        }
         *task_status_counts
             .entry(task.task_runtime.status.as_str().to_owned())
             .or_insert(0) += 1;
@@ -198,7 +271,7 @@ pub(crate) fn handle_runtime_overview(args: &[String]) -> ExitCode {
         .count();
     let bound_task_count = tasks
         .iter()
-        .filter(|task| task.task_spec.implementation_ref.is_some())
+        .filter(|task| task_implementation_id(task).is_some())
         .count();
 
     let policy = if with_policy {
@@ -267,7 +340,7 @@ pub(crate) fn handle_runtime_overview(args: &[String]) -> ExitCode {
         let mut unbound_tasks_no_skill = Vec::new();
         let mut unbound_tasks_missing_recommendation = Vec::new();
         for task in &tasks {
-            if task.task_spec.implementation_ref.is_some() {
+            if task_implementation_id(task).is_some() {
                 continue;
             }
             if task.task_spec.skill_refs.is_empty() {
@@ -396,13 +469,22 @@ pub(crate) fn handle_runtime_overview(args: &[String]) -> ExitCode {
     let details = if with_details {
         let mut implementation_usage_rows = implementation_usage
             .iter()
-            .map(|(id, count)| RuntimeOverviewUsageJson {
-                id: id.clone(),
-                count: *count,
+            .map(|(id, usage)| RuntimeOverviewImplementationUsageJson {
+                implementation_id: id.clone(),
+                runtime_task_count: usage.runtime_task_count,
+                active_task_count: usage.active_task_count,
+                runtime_assignment_count: usage.runtime_assignment_count,
+                execution_count: usage.execution_count,
             })
             .collect::<Vec<_>>();
         implementation_usage_rows
-            .sort_by(|a, b| b.count.cmp(&a.count).then_with(|| a.id.cmp(&b.id)));
+            .sort_by(|a, b| {
+                b.runtime_task_count
+                    .cmp(&a.runtime_task_count)
+                    .then_with(|| b.runtime_assignment_count.cmp(&a.runtime_assignment_count))
+                    .then_with(|| b.execution_count.cmp(&a.execution_count))
+                    .then_with(|| a.implementation_id.cmp(&b.implementation_id))
+            });
         let mut task_status_rows = task_status_counts
             .iter()
             .map(|(id, count)| RuntimeOverviewUsageJson {
@@ -645,8 +727,12 @@ pub(crate) fn handle_runtime_overview(args: &[String]) -> ExitCode {
         );
         for row in &details.implementation_usage {
             println!(
-                "  implementation_usage: implementation={} task_count={}",
-                row.id, row.count
+                "  implementation_usage: implementation={} runtime_tasks={} active_tasks={} assignments={} executions={}",
+                row.implementation_id,
+                row.runtime_task_count,
+                row.active_task_count,
+                row.runtime_assignment_count,
+                row.execution_count
             );
         }
         println!(
@@ -815,18 +901,18 @@ pub(crate) fn handle_system_overview(args: &[String]) -> ExitCode {
     let mut trigger_count = 0usize;
     let mut audit_count = 0usize;
     let mut trace_count = 0usize;
-    let mut implementation_usage = std::collections::BTreeMap::<String, usize>::new();
+    let implementation_usage = match summarize_runtime_implementation_usage(root, &tasks) {
+        Ok(value) => value,
+        Err(error) => {
+            eprintln!("failed to summarize system implementation usage: {error}");
+            return ExitCode::from(1);
+        }
+    };
     let mut active_reason_counts = std::collections::BTreeMap::<String, usize>::new();
     let mut trigger_waiting_consumption_rows = Vec::<RuntimeOverviewUsageJson>::new();
     let mut active_task_rows = Vec::<RuntimeOverviewActiveTaskJson>::new();
 
     for task in &tasks {
-        if let Some(implementation_ref) = &task.task_spec.implementation_ref {
-            *implementation_usage
-                .entry(implementation_ref.clone())
-                .or_insert(0) += 1;
-        }
-
         let (_, assignments) = match load_task_assignments(root, &task.task_spec.task_id) {
             Ok(value) => value,
             Err(error) => {
@@ -943,7 +1029,7 @@ pub(crate) fn handle_system_overview(args: &[String]) -> ExitCode {
         .count();
     let implementation_bound_task_count = tasks
         .iter()
-        .filter(|task| task.task_spec.implementation_ref.is_some())
+        .filter(|task| task_implementation_id(task).is_some())
         .count();
     let skill_with_recommendation_count = filtered_skills
         .iter()
@@ -1047,7 +1133,7 @@ pub(crate) fn handle_system_overview(args: &[String]) -> ExitCode {
         let mut task_without_implementation_no_skill_count = 0usize;
         let mut task_without_implementation_missing_recommendation_count = 0usize;
         for task in &tasks {
-            if task.task_spec.implementation_ref.is_some() {
+            if task_implementation_id(task).is_some() {
                 continue;
             }
             if task.task_spec.skill_refs.is_empty() {
@@ -1107,16 +1193,26 @@ pub(crate) fn handle_system_overview(args: &[String]) -> ExitCode {
             .collect::<Vec<_>>();
         let mut implementation_usage_rows = implementation_usage
             .iter()
-            .map(|(id, count)| RuntimeOverviewUsageJson {
-                id: id.clone(),
-                count: *count,
+            .map(|(id, usage)| RuntimeOverviewImplementationUsageJson {
+                implementation_id: id.clone(),
+                runtime_task_count: usage.runtime_task_count,
+                active_task_count: usage.active_task_count,
+                runtime_assignment_count: usage.runtime_assignment_count,
+                execution_count: usage.execution_count,
             })
             .collect::<Vec<_>>();
         recommended_skills.sort_by(|a, b| a.skill_id.cmp(&b.skill_id));
         if sort == "target" {
-            implementation_usage_rows.sort_by(|a, b| a.id.cmp(&b.id));
+            implementation_usage_rows
+                .sort_by(|a, b| a.implementation_id.cmp(&b.implementation_id));
         } else {
-            overview_count_sort(&mut implementation_usage_rows);
+            implementation_usage_rows.sort_by(|a, b| {
+                b.runtime_task_count
+                    .cmp(&a.runtime_task_count)
+                    .then_with(|| b.runtime_assignment_count.cmp(&a.runtime_assignment_count))
+                    .then_with(|| b.execution_count.cmp(&a.execution_count))
+                    .then_with(|| a.implementation_id.cmp(&b.implementation_id))
+            });
         }
         sort_active_task_rows(&mut active_task_rows, sort);
         Some(SystemOverviewDetailsJson {
@@ -1549,8 +1645,12 @@ pub(crate) fn handle_system_overview(args: &[String]) -> ExitCode {
         );
         for row in &details.implementation_usage {
             println!(
-                "  implementation_usage: implementation={} task_count={}",
-                row.id, row.count
+                "  implementation_usage: implementation={} runtime_tasks={} active_tasks={} assignments={} executions={}",
+                row.implementation_id,
+                row.runtime_task_count,
+                row.active_task_count,
+                row.runtime_assignment_count,
+                row.execution_count
             );
         }
         println!("  active_task_count: {}", details.active_task_count);

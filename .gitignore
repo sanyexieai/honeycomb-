@@ -1,6 +1,8 @@
 ﻿target/*
 .rustc_info.json
 .honeycomb/
+.env
+.env.local
 evolution/**
 runtime/*
 skills/*

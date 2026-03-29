@@ -30,8 +30,8 @@ pub(crate) fn resolve_execution_implementation_snapshot(
     assignment_id: Option<&str>,
     implementation_ref: Option<&str>,
 ) -> std::io::Result<Option<ImplementationSnapshot>> {
-    if let Some(assignment_id) = assignment_id
-        && let Ok((_, assignment)) = load_assignment(root, assignment_id)
+    if let (Some(task_id), Some(assignment_id)) = (task_id, assignment_id)
+        && let Ok((_, assignment)) = load_assignment(root, task_id, assignment_id)
     {
         if assignment.implementation_snapshot.is_some() {
             return Ok(assignment.implementation_snapshot);
@@ -45,6 +45,22 @@ pub(crate) fn resolve_execution_implementation_snapshot(
         }
     }
     load_implementation_snapshot_from_ref(root, implementation_ref)
+}
+
+fn snapshot_skill(record: &ExecutionRecord) -> &str {
+    record
+        .implementation_snapshot
+        .as_ref()
+        .map(|snapshot| snapshot.skill_id.as_str())
+        .unwrap_or("<none>")
+}
+
+fn snapshot_executor(record: &ExecutionRecord) -> &str {
+    record
+        .implementation_snapshot
+        .as_ref()
+        .map(|snapshot| snapshot.executor.as_str())
+        .unwrap_or("<none>")
 }
 
 pub(crate) fn persist_execution_task_records(
@@ -66,10 +82,12 @@ pub(crate) fn persist_execution_task_records(
             task_id.to_owned(),
             timestamp.clone(),
             format!(
-                "target={} assignment={} implementation={} status={}",
+                "target={} assignment={} implementation={} implementation_skill={} implementation_executor={} status={}",
                 record.target_id,
                 record.assignment_id.as_deref().unwrap_or("<none>"),
                 record.implementation_ref.as_deref().unwrap_or("<none>"),
+                snapshot_skill(record),
+                snapshot_executor(record),
                 record.status.as_str()
             ),
         ),
@@ -88,9 +106,11 @@ pub(crate) fn persist_execution_task_records(
             task_id.to_owned(),
             record.status.as_str().to_owned(),
             format!(
-                "runner={} assignment={} skills={} tools={} output={}",
+                "runner={} assignment={} implementation_skill={} implementation_executor={} skills={} tools={} output={}",
                 record.runner,
                 record.assignment_id.as_deref().unwrap_or("<none>"),
+                snapshot_skill(record),
+                snapshot_executor(record),
                 joined_or_none(&record.skill_refs),
                 joined_or_none(&record.tool_refs),
                 record.output
@@ -112,10 +132,12 @@ pub(crate) fn persist_execution_task_records(
             task_id.to_owned(),
             record.status.as_str().to_owned(),
             format!(
-                "runner={} target={} implementation={} steps={}",
+                "runner={} target={} implementation={} implementation_skill={} implementation_executor={} steps={}",
                 record.runner,
                 record.target_id,
                 record.implementation_ref.as_deref().unwrap_or("<none>"),
+                snapshot_skill(record),
+                snapshot_executor(record),
                 record.plan_steps.join(" | ")
             ),
         ),

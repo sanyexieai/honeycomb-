@@ -45,6 +45,15 @@ pub(crate) struct RuntimeOverviewUsageJson {
     pub(crate) count: usize,
 }
 
+#[derive(Serialize)]
+pub(crate) struct RuntimeOverviewImplementationUsageJson {
+    pub(crate) implementation_id: String,
+    pub(crate) runtime_task_count: usize,
+    pub(crate) active_task_count: usize,
+    pub(crate) runtime_assignment_count: usize,
+    pub(crate) execution_count: usize,
+}
+
 #[derive(Clone, Serialize)]
 pub(crate) struct RuntimeOverviewActiveTaskJson {
     pub(crate) task_id: String,
@@ -119,7 +128,7 @@ pub(crate) struct RuntimeOverviewGapsJson {
 #[derive(Serialize)]
 pub(crate) struct RuntimeOverviewDetailsJson {
     pub(crate) implementation_usage_detail_count: usize,
-    pub(crate) implementation_usage: Vec<RuntimeOverviewUsageJson>,
+    pub(crate) implementation_usage: Vec<RuntimeOverviewImplementationUsageJson>,
     pub(crate) task_status_detail_count: usize,
     pub(crate) task_statuses: Vec<RuntimeOverviewUsageJson>,
     pub(crate) active_task_reason_detail_count: usize,
@@ -202,7 +211,7 @@ pub(crate) struct SystemOverviewDetailsJson {
     pub(crate) recommended_skill_count: usize,
     pub(crate) recommended_skills: Vec<RegistryOverviewRecommendedSkillJson>,
     pub(crate) implementation_usage_count: usize,
-    pub(crate) implementation_usage: Vec<RuntimeOverviewUsageJson>,
+    pub(crate) implementation_usage: Vec<RuntimeOverviewImplementationUsageJson>,
     pub(crate) active_task_count: usize,
     pub(crate) active_tasks: Vec<RuntimeOverviewActiveTaskJson>,
 }

@@ -154,6 +154,12 @@
 - `task submit/demo-flow` 对实现体引用的入口校验
 - `task submit/demo-flow` 已开始把最小 `implementation_snapshot` 写入任务运行态记录
 - `task assign` 已开始把最小 `implementation_snapshot` 写入 assignment 运行态记录
+- `skill execute` / `tool execute` 已开始把最小 `implementation_snapshot` 写入 execution record 运行态记录
+- `runtime overview` / `system overview` 已开始优先使用运行态 `implementation_snapshot` 聚合实现体使用情况
+- 进化面的 `implementation usage` / `implementation hotspot` / `print_runtime_usage` 已开始优先使用运行态 `implementation_snapshot`
+- 进化面的 `implementation usage` 已扩展到同时统计 `runtime_task_count`、`active_task_count`、`runtime_assignment_count`、`execution_count`
+- `registry overview --with-details` 的 `implementation_usage` 已升级为多维摘要，不再只显示单一 `task_count`
+- 执行面的 `runtime overview` / `system overview` 也已升级为同一套多维 `implementation_usage` 口径
 - `skill inspect/list/execute` 对实现体绑定关系的校验
 - `registry sync` / `registry overview` 对实现体对象的基础联动校验
 - `registry overview --with-details` 已可显示“近期常触发 guardrail 且仍被推荐或活跃使用”的 implementation hotspot 视图
@@ -193,6 +199,8 @@
 - `review_refresh_min_severity_delta`
 - `review_severity_weight_recommended_by`
 - `review_severity_weight_active_tasks`
+- `review_severity_weight_runtime_assignments`
+- `review_severity_weight_executions`
 - `review_severity_weight_severe_flags`
 
 这意味着同一技能下的多个实现体可以共享一组默认治理节奏，而少数特殊实现体再用自身 `constraints` 做更细粒度覆盖。
@@ -203,3 +211,117 @@
 - `honeycomb-evolution governance-defaults inspect`
 - `honeycomb-evolution governance-defaults set --policy KEY=VALUE`
 - `honeycomb-evolution governance-defaults set --clear-policy KEY`
+
+其中 `governance-defaults inspect` 当前也会直接列出系统已知的治理策略键，便于确认哪些 refresh / 严重性参数可以由全局默认策略承接。
+
+与此同时，implementation hotspot 视图现在不仅会显示各 refresh / 严重性参数的命中值，也会显示它们的来源层；对 `review_severity_weight_runtime_assignments` 与 `review_severity_weight_executions` 这两个新权重，也会直接显示数值和来源，方便解释“为什么这次 refresh 判定被放大或压低”。
+
+## 8. 最小 LLM 接入约定
+
+当前系统已经支持最小 provider 抽象，并已接入：
+
+- `openai_responses`
+- `openai_compatible_responses`
+- `openai_compatible_chat`
+- `minimax_chat`
+- `ollama_responses`
+- `ollama_generate`
+
+各 provider 当前建议约定如下：
+
+- `executor = "openai_responses"`
+- `entry.kind = "model"`
+- `entry.path = "<model-id>"`
+
+- `executor = "openai_compatible_responses"`
+- `entry.kind = "model"`
+- `entry.path = "<model-id>"`
+
+- `executor = "openai_compatible_chat"`
+- `entry.kind = "model"`
+- `entry.path = "<model-id>"`
+
+- `executor = "minimax_chat"`
+- `entry.kind = "model"`
+- `entry.path = "<model-id>"`
+
+- `executor = "ollama_responses"`
+- `entry.kind = "model"`
+- `entry.path = "<model-id>"`
+
+- `executor = "ollama_generate"`
+- `entry.kind = "model"`
+- `entry.path = "<model-id>"`
+
+运行时由 `skill execute` 直接读取实现体并发起真实模型调用。
+当前最小配置约定：
+
+- 通用：`HONEYCOMB_LLM_PROVIDER`
+- 通用：`HONEYCOMB_LLM_API_KEY`
+- 通用：`HONEYCOMB_LLM_BASE_URL`
+- 可选通用：`HONEYCOMB_LLM_ENDPOINT_PATH`
+- `OPENAI_API_KEY`
+- 可选：`OPENAI_BASE_URL`
+- 可选：`OPENAI_COMPATIBLE_API_KEY`
+- 可选：`OPENAI_COMPATIBLE_BASE_URL`
+- 可选：`MINIMAX_API_KEY`
+- 可选：`MINIMAX_BASE_URL`
+- 可选：`OLLAMA_API_KEY`
+- 可选：`OLLAMA_BASE_URL`
+- 可选策略：`strategy.reasoning_effort`
+- 可选策略：`strategy.provider_base_url`
+- 可选策略：`strategy.provider_endpoint_path`
+- 可选策略：`strategy.provider_api_key`
+- 可选策略：`strategy.provider_api_key_env`
+- 可选策略：`strategy.provider_timeout_secs`
+- 可选组件：`components.prompt`
+
+其中 `components.prompt` 若指向可读取文件，会作为 `instructions` 发送给 Responses API；执行输入会作为 `input` 发送。
+对 `openai_compatible_chat` 与 `minimax_chat`，`components.prompt` 会作为 `system` 消息，执行输入会作为 `user` 消息；其中 `minimax_chat` 当前会额外带上 `reasoning_split=true`。
+对 `ollama_generate`，`components.prompt` 会作为 `system`，执行输入会作为 `prompt`，并固定以 `stream=false` 方式调用。
+
+如果希望本地配置尽量通用，当前建议优先使用：
+
+- `HONEYCOMB_LLM_PROVIDER`
+- `HONEYCOMB_LLM_API_KEY`
+- `HONEYCOMB_LLM_BASE_URL`
+
+其中 `HONEYCOMB_LLM_PROVIDER` 当前支持：
+
+- `minimax`
+- `minimax_chat`
+- `openai`
+- `openai_responses`
+- `openai_compatible`
+- `openai_compatible_responses`
+- `openai_compatible_chat`
+- `ollama`
+- `ollama_responses`
+- `ollama_generate`
+
+只有当 `HONEYCOMB_LLM_PROVIDER` 与当前实现体 `executor` 匹配时，这组通用变量才会生效；否则仍然回退到对应 provider 的专用变量。
+
+## 9. 本地 `.env` 加载
+
+当前执行器已支持本地 `.env` / `.env.local` 自动加载，用于 provider 密钥和本地 endpoint 配置。
+
+查找顺序当前为：
+
+1. `<root>/.env`
+2. `<root>/.env.local`
+3. `cwd/.env`
+4. `cwd/.env.local`
+
+约定如下：
+
+- 仅在 `skill execute` 等真实 provider 执行前加载
+- 已存在的环境变量优先，不会被 `.env` 覆盖
+- `.env` 更适合作为本地默认值和开发机配置
+
+最小示例：
+
+```dotenv
+HONEYCOMB_LLM_PROVIDER=minimax
+HONEYCOMB_LLM_API_KEY=your_key_here
+HONEYCOMB_LLM_BASE_URL=https://api.minimaxi.com/v1
+```

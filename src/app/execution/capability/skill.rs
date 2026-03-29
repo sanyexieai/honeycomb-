@@ -3,6 +3,7 @@ use super::super::control::*;
 use super::super::task::validate_registry_refs;
 use super::super::*;
 use super::execution_record;
+use crate::executor::execute_skill_implementation;
 
 pub(crate) fn handle_skill_inspect(args: &[String]) -> ExitCode {
     let skill_id = option_value(args, "--skill-id").unwrap_or("skill-demo");
@@ -342,6 +343,17 @@ pub(crate) fn handle_skill_execute(args: &[String]) -> ExitCode {
         skill.skill_id,
         crate::core::current_timestamp().replace(':', "_")
     );
+    let implementation_record = implementation_ref
+        .as_deref()
+        .map(|implementation_id| load_implementation(root, implementation_id))
+        .transpose();
+    let implementation_record = match implementation_record {
+        Ok(value) => value.map(|(_, record)| record),
+        Err(error) => {
+            eprintln!("failed to load implementation for skill execution: {error}");
+            return ExitCode::from(1);
+        }
+    };
     let implementation_snapshot = match execution_record::resolve_execution_implementation_snapshot(
         root,
         task_id.as_deref(),
@@ -434,7 +446,21 @@ pub(crate) fn handle_skill_execute(args: &[String]) -> ExitCode {
         }
     }
 
-    let (runner, exit_code, status, output) = if run_tools && !child_statuses.is_empty() {
+    if !tool_execution_ids.is_empty() {
+        plan_steps.push(format!(
+            "child_tool_executions={}",
+            tool_execution_ids.join(",")
+        ));
+    }
+    let outcome = if let Some(implementation) = implementation_record.as_ref() {
+        match execute_skill_implementation(root, implementation, input, &child_outputs) {
+            Ok(value) => value,
+            Err(error) => {
+                eprintln!("failed to execute skill implementation: {error}");
+                return ExitCode::from(1);
+            }
+        }
+    } else if run_tools && !child_statuses.is_empty() {
         let has_failed = child_statuses
             .iter()
             .any(|status| *status == crate::executor::ExecutionStatus::Failed);
@@ -449,35 +475,31 @@ pub(crate) fn handle_skill_execute(args: &[String]) -> ExitCode {
             crate::executor::ExecutionStatus::Simulated
         };
         let output = child_outputs.join(" | ");
-        (
-            "skill-orchestrator".to_owned(),
-            None,
+        crate::executor::ToolExecutionOutcome {
+            runner: "skill-orchestrator".to_owned(),
+            exit_code: None,
             status,
-            if output.is_empty() {
+            plan_steps: Vec::new(),
+            output: if output.is_empty() {
                 format!("orchestrated {} tool(s)", tool_execution_ids.len())
             } else {
                 output
             },
-        )
+        }
     } else {
-        (
-            "local-simulated".to_owned(),
-            None,
-            crate::executor::ExecutionStatus::Simulated,
-            format!(
+        crate::executor::ToolExecutionOutcome {
+            runner: "local-simulated".to_owned(),
+            exit_code: None,
+            status: crate::executor::ExecutionStatus::Simulated,
+            plan_steps: Vec::new(),
+            output: format!(
                 "simulated skill execution for {} with {} tool(s)",
                 skill.display_name,
                 skill.default_tool_refs.len()
             ),
-        )
+        }
     };
-
-    if !tool_execution_ids.is_empty() {
-        plan_steps.push(format!(
-            "child_tool_executions={}",
-            tool_execution_ids.join(",")
-        ));
-    }
+    plan_steps.extend(outcome.plan_steps.clone());
 
     let record = ExecutionRecord::new(
         execution_id.clone(),
@@ -491,10 +513,10 @@ pub(crate) fn handle_skill_execute(args: &[String]) -> ExitCode {
         skill.default_tool_refs.clone(),
         input.to_owned(),
         plan_steps,
-        output,
-        runner,
-        exit_code,
-        status,
+        outcome.output,
+        outcome.runner,
+        outcome.exit_code,
+        outcome.status,
     );
     let path = match persist_execution_record(root, &record) {
         Ok(path) => path,
