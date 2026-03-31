@@ -1,4 +1,4 @@
-﻿# 蜂巢规范
+# 蜂巢规范
 
 ## 1. 目标
 
@@ -116,4 +116,4 @@ evolution:
 - 实现体与基因见 `implementation-spec.md`
 - 最佳实践见 `practice-profile.md`
 - 评分与晋升见 `fitness-and-promotion.md`
-- 数据落地样例见 `execution-evolution-data-examples.md`
+- 数据落地样例见 `execution-evolution-data-examples.md`（含 bee 运行时 LLM/工具证据路径）

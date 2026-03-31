@@ -33,7 +33,7 @@ use super::execution_support::{
 };
 
 #[path = "execution/capability/mod.rs"]
-mod capability;
+pub(crate) mod capability;
 #[path = "execution/common_support.rs"]
 mod common_support;
 #[path = "execution/control/mod.rs"]
@@ -50,6 +50,10 @@ mod scheduler;
 mod task;
 #[path = "execution/trigger/mod.rs"]
 mod trigger;
+#[path = "execution/code.rs"]
+mod code;
+#[path = "execution/history.rs"]
+pub(crate) mod history;
 
 use task::{collect_rerun_plan_alerts, list_rerun_plans};
 
@@ -111,6 +115,7 @@ pub(crate) fn handle(command: Command, args: &[String]) -> ExitCode {
         Command::RuntimeOverview => overview::handle_runtime_overview(args),
         Command::SystemOverview => overview::handle_system_overview(args),
         Command::SystemAlerts => overview::handle_system_alerts(args),
+        Command::Code => code::handle_code(args),
         other => {
             println!(
                 "{} command scaffold: {}",

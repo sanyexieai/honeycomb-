@@ -12,28 +12,28 @@
 
 仍然保持一致的部分：
 
-- 双二进制模型仍在
-- 执行面与进化面的概念仍在
+- 三二进制分层目标已写入文档（见 `architecture.md`）；旧实现曾以双二进制为主
+- bee 运行时、蜂巢能力中心与进化面的概念仍在推进落地
 - 任务、assignment、事件、追踪、审计落盘骨架已经形成
 - 触发器、常驻蜂巢、评估与治理已经有最小原型
 
 已经开始偏离的部分：
 
-- 执行面开始直接写长期注册表和治理状态
+- 旧 `honeycomb` 混入口曾直接写长期注册表和治理状态（目标终态应由能力中心 + 进化治理路径承担）
 - 运行态开始被后验治理结果反向改写
 - 超大 CLI 入口把多类职责耦合到同一个文件
 - 实现体仍以字符串引用为主，尚未恢复为正式长期对象
 
 ## 3. 关键偏离点
 
-### 3.1 执行面直接写长期状态
+### 3.1 混入口直接写长期状态
 
-当前 `honeycomb` 已经承担了部分技能、工具、审批与策略写入职责。
+当前 `honeycomb` 曾承担部分技能、工具、审批与策略写入职责（与三层拆分目标冲突）。
 
 这与以下原则冲突：
 
-- 执行面不直接改长期技能定义
-- 长期状态写入由进化面负责
+- bee 运行时不直接改长期技能定义
+- 长期状态写入由进化面或经治理的能力中心路径负责
 - 运行时不得直接改写稳定技能定义
 
 ### 3.2 历史运行事实被后验推荐回写
@@ -88,23 +88,23 @@
 - 历史任务运行记录不再被后验推荐结果修改
 - 用户仍可看到建议的推荐实现，但不会污染原始运行事实
 
-### 阶段 2：收回执行面对长期状态的直接写入
+### 阶段 2：收回混入口对长期状态的直接写入
 
 本阶段目标：
 
-- 将技能、工具、审批等长期写操作从执行面迁出
-- 执行面保留只读查询和运行期消费
-- 长期状态写入收敛到进化面或独立治理入口
+- 将技能、工具、审批等长期写操作从 bee 运行链与混入口迁出
+- bee 运行时保留运行期消费；注册表只读查询由能力中心（`honeycomb`）提供
+- 长期状态写入收敛到进化面或经治理的能力中心入口
 
 交付标准：
 
-- `honeycomb` 不再承担长期默认值、推荐值、审批状态的正式写入职责
+- `honeycomb` 作为能力中心不再承担未经治理的长期默认值、推荐值、审批状态写入
 
-### 阶段 3：拆分执行面大入口
+### 阶段 3：拆分混入口并迁移至 `honeycomb-bee`
 
 本阶段目标：
 
-- 将执行面 CLI 按职责拆成多个子模块
+- 将原执行 CLI 按职责拆成多个子模块，并把 queen/worker 主链迁移至 `honeycomb-bee`
 - 为 `scheduler`、`control`、`observability`、`trigger`、`resident` 建立明确边界
 
 交付标准：
@@ -142,8 +142,8 @@
 当前按以下顺序推进：
 
 1. 冻结 `task backfill-implementation` 的回写行为
-2. 迁出执行面对长期状态的写操作
-3. 拆分执行面入口文件
+2. 迁出混入口对长期状态的写操作
+3. 拆分混入口并迁移 queen/worker 至 `honeycomb-bee`
 4. 引入正式实现体对象
 5. 建立定期反思记录与节奏
 
@@ -151,20 +151,20 @@
 
 - 文档状态：已建立
 - 当前回顾结论：未发现新的架构偏离，当前开发仍在沿既定收敛路线推进
-  - 已确认：执行面未重新接管长期状态写入
+  - 已确认：bee 运行链未重新接管长期状态写入
   - 已确认：进化面新增的治理默认策略、review/reflection 建议与 hotspot 汇总仍停留在长期治理侧
   - 已确认：未出现新的历史运行事实回写路径
-  - 遗留：运行态仍主要使用 `implementation_ref` 字符串；`control` 仍是执行层内部子模块
+  - 遗留：运行态仍主要使用 `implementation_ref` 字符串；`control` 仍是 bee 运行时代码布局内子模块
 - 阶段 1：已完成
   - 已完成：`task backfill-implementation` 已冻结为只读建议模式，不再改写历史任务与 assignment 运行事实
 - 阶段 2：已完成
-  - 已完成：执行面长期写命令已从 CLI 移除
+  - 已完成：混入口长期写命令已从 CLI 移除
 - 阶段 3：进行中
   - 已完成：`src/app/execution.rs` 已收敛为薄分发层
-  - 已完成：执行层已形成 `task`、`overview`、`scheduler`、`protocol`、`trigger`、`resident`、`capability`、`control` 领域目录
+  - 已完成：bee 运行时代码布局内已形成 `task`、`overview`、`scheduler`、`protocol`、`trigger`、`resident`、`capability`、`control` 领域目录
   - 已完成：`capability` 已进一步拆分为 `skill`、`tool`、`approval`、`execution_record`
   - 已完成：shell policy、审批状态过滤、执行前授权检查已迁入 `control`
-  - 遗留：`control` 仍是执行层内部子模块，尚未提升为更独立的上层领域模块
+  - 遗留：`control` 仍是 bee 运行时代码布局内子模块，尚未提升为更独立的上层领域模块
 - 阶段 4：进行中
   - 已完成：最小 `ImplementationRecord`、`ImplementationEntry`、`ImplementationCompatibility`、`ImplementationOrigin` 已落地
   - 已完成：`registry/implementations` 的 `persist/load/update/list` 存储接口已落地
@@ -178,7 +178,7 @@
   - 已完成：进化面的 `implementation usage` / `implementation hotspot` / `print_runtime_usage` 已开始优先消费运行态 `implementation_snapshot`
   - 已完成：进化面的实现体使用统计已扩展到 `task / assignment / execution record` 三层运行态
   - 已完成：`registry overview --with-details` 的 `implementation_usage` 已从单一 `task_count` 升级为多维实现体使用摘要
-  - 已完成：执行面的 `runtime overview` / `system overview` 已与进化面对齐到同一套多维实现体使用摘要
+  - 已完成：能力中心侧 `runtime overview` / `system overview` 已与进化面对齐到同一套多维实现体使用摘要
   - 已完成：`FitnessReport` 与 `EvolutionPlan` 已内嵌最小实现体快照，不再只围绕裸 `implementation_id`
   - 已完成：治理决策已开始直接消费 `strategy.mode`、`components.prompt`、`constraints.max_cost/max_latency_ms`
   - 已完成：`registry sync` 已对极端高风险实现体启用跳过与降权排序

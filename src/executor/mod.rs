@@ -241,6 +241,20 @@ pub fn execute_skill_implementation(
 ) -> io::Result<ToolExecutionOutcome> {
     load_local_env(root)?;
     if let Some(provider) = resolve_skill_provider(implementation)? {
+        if provider.api_key.is_none() {
+            match provider.kind {
+                SkillProviderKind::OpenAIResponses
+                | SkillProviderKind::OpenAICompatibleResponses
+                | SkillProviderKind::OpenAICompatibleChat
+                | SkillProviderKind::MiniMaxChat => {
+                    return Err(io::Error::other(
+                        "LLM provider requires an API key. Set HONEYCOMB_LLM_API_KEY \
+                         (with HONEYCOMB_LLM_PROVIDER), or provider-specific key env / provider_api_key.",
+                    ));
+                }
+                SkillProviderKind::OllamaResponses | SkillProviderKind::OllamaGenerate => {}
+            }
+        }
         return execute_provider_skill(root, implementation, input, tool_outputs, &provider);
     }
 
@@ -1032,6 +1046,8 @@ mod tests {
         assert_eq!(outcome.status, ExecutionStatus::Simulated);
     }
 
+    /// `execute_local_shell` spawns `sh -lc` (Unix). Windows CI/dev shells omit `sh` by default.
+    #[cfg(unix)]
     #[test]
     fn shell_entrypoint_executes_command() {
         let outcome = execute_tool_entrypoint(
@@ -1045,6 +1061,7 @@ mod tests {
         assert_eq!(outcome.output, "shell:world");
     }
 
+    #[cfg(unix)]
     #[test]
     fn shell_entrypoint_times_out() {
         let outcome = execute_local_shell_with_limits("sleep 0.05", "", 10, 1024)
@@ -1060,6 +1077,7 @@ mod tests {
         );
     }
 
+    #[cfg(unix)]
     #[test]
     fn shell_entrypoint_truncates_output() {
         let outcome =

@@ -8,7 +8,7 @@
 
 - `app`：进程入口、批处理任务启动
 - `core`：共享对象与枚举
-- `ingest`：读取执行面评估输入
+- `ingest`：读取 bee 运行时导出的评估输入
 - `fitness`：指标归一化、评分计算、报告生成
 - `governance`：`promote`、`hold`、`deprecate`、`observe`
 - `lineage`：实现体谱系与来源关系
@@ -24,7 +24,7 @@
 
 负责：
 
-- 读取执行面导出的评估输入
+- 读取 bee 运行时导出的评估输入
 - 校验最小上下文
 - 去重和批次归档
 
@@ -100,7 +100,7 @@ audit
 
 | 对象 | 主模块 | 说明 |
 | --- | --- | --- |
-| `EvaluationInput` | `ingest` | 执行面导入的评估输入 |
+| `EvaluationInput` | `ingest` | bee 运行时导入的评估输入 |
 | `FitnessReport` | `fitness` | 评分结果 |
 | `GovernanceDecision` | `governance` | 晋升或观察决定 |
 | `LineageRecord` | `lineage` | 谱系记录 |
@@ -135,7 +135,7 @@ audit
 
 ## 7. 关键原则
 
-- 执行面只提交证据，不直接下长期结论
+- bee 运行时只提交证据，不直接下长期结论
 - 评分与治理分层，便于替换公式
 - 注册表更新必须经过审计
 - 自动化策略必须受 `policy` 限制

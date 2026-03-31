@@ -1,4 +1,4 @@
-﻿[package]
+[package]
 name = "honeycomb"
 version = "0.1.0"
 edition = "2024"
@@ -14,6 +14,10 @@ path = "src/bin/honeycomb.rs"
 [[bin]]
 name = "honeycomb-evolution"
 path = "src/bin/honeycomb-evolution.rs"
+
+[[bin]]
+name = "honeycomb-bee"
+path = "src/bin/honeycomb-bee.rs"
 
 [dependencies]
 reqwest = { version = "0.12", default-features = false, features = ["blocking", "json", "rustls-tls"] }

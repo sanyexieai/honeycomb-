@@ -54,17 +54,17 @@
   "period_label": "2026-W13",
   "recorded_by": "local-dev",
   "decision": "drift_detected",
-  "summary": "execution plane had accumulated long-term write paths and placeholder commands",
+  "summary": "mixed honeycomb CLI had accumulated long-term write paths and placeholder commands",
   "detected_drifts": [
-    "execution plane wrote long-term registry state",
+    "bee runtime path wrote long-term registry state before three-binary split",
     "placeholder commands leaked into user-facing CLI"
   ],
   "freeze_actions": [
-    "remove execution-side long-term write commands",
+    "remove bee-runtime-side long-term write commands",
     "remove scaffold-only public commands"
   ],
   "next_actions": [
-    "split execution app entry by domain",
+    "migrate queen/worker to honeycomb-bee and split hive CLI by domain",
     "introduce reflection cadence into governance workflow"
   ],
   "review_refs": [

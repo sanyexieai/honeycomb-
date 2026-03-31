@@ -47,9 +47,12 @@
 
 ### 4.1 `target_plane`
 
-- `execution`
+- `bee_runtime`
+- `hive_capability`
 - `evolution`
-- `cross_plane`
+- `cross_layer`
+
+说明：旧数据或示例中可能出现 `execution`，语义等同于 `bee_runtime`，新记录应使用上表枚举。
 
 ### 4.2 `status`
 
@@ -84,7 +87,7 @@
   "title": "task backfill implementation behavior",
   "change_scope": "execution_cli_command",
   "requested_by": "local-dev",
-  "target_plane": "execution",
+  "target_plane": "bee_runtime",
   "target_modules": [
     "app",
     "runtime",

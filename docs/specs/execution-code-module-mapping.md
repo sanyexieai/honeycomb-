@@ -1,8 +1,8 @@
-# 执行面代码模块映射草案
+# Bee 运行时代码模块映射草案
 
 ## 1. 目标
 
-本文档把执行面已有规格映射为可实现的 Rust 模块边界，避免在落地时重新把任务、协议、调度、恢复和治理耦合在一起。
+本文档把 `honeycomb-bee` 运行时规格映射为可实现的 Rust 模块边界，避免在落地时重新把任务、协议、调度、恢复与长期治理耦合在一起。
 
 ## 2. 设计原则
 
@@ -14,7 +14,7 @@
 
 ## 3. 顶层模块建议
 
-建议执行面至少拆成以下一级模块：
+建议 bee 至少拆成以下一级模块：
 
 - `app`：进程入口、角色启动、配置装配
 - `core`：共享核心类型与枚举
@@ -27,7 +27,7 @@
 - `storage`：文件系统读写、快照、追加日志
 - `observability`：事件、追踪、审计写入与查询
 - `control`：配额、策略、权限前置检查
-- `registry`：只读注册表访问
+- `registry_client`：只读能力中心访问
 - `trigger`：手动、定时、事件触发
 - `resident`：常驻蜂巢生命周期与触发绑定
 
@@ -54,7 +54,7 @@ src/
 
 ## 4.1 当前执行层落地状态
 
-截至当前实现，执行面 CLI 已经从单体入口收敛成“薄分发层 + 领域子目录”：
+截至当前实现，历史执行层 CLI 已经从单体入口收敛成“薄分发层 + 领域子目录”：
 
 ```text
 src/app/execution.rs
@@ -98,7 +98,7 @@ src/app/execution/
 - `capability/` 已继续细分为 `skill`、`tool`、`approval`、`execution_record`
 - `control/` 已承接 shell policy、审批状态过滤、执行前授权检查等控制逻辑
 
-这说明“阶段 3：拆分执行面大入口”已经不再只是目标，而是已有明确落地骨架。
+这说明历史上“阶段 3：拆分执行面大入口”在旧代码布局中已形成骨架；激进重构后，执行主链应迁移至 `honeycomb-bee`，能力中心保留在 `honeycomb`。
 
 ## 5. 模块职责
 
@@ -190,6 +190,7 @@ src/app/execution/
 - 推进拓扑 ready 节点
 - 选择 worker
 - 创建和更新 assignment
+- 触发 queen 的 LLM 决策流程并记录证据引用
 
 不负责：
 
@@ -279,13 +280,14 @@ src/app/execution/
 - 相关调用方已从 `overview`、`capability/skill`、`capability/tool`、`capability/approval` 切换到该模块
 - 后续仍可继续把告警 ack/过滤规则和更完整的权限前置检查向 `control` 深化
 
-### 5.12 `registry`
+### 5.12 `registry_client`
 
 负责：
 
 - 读取技能定义
 - 读取默认实现体
 - 读取模板、最佳实践、正式状态
+- 读取工具白名单与能力约束
 
 第一版建议只读，不写。
 
@@ -327,7 +329,7 @@ src/app/execution/
 
 ```text
 app
-  -> control / registry / resident / trigger / scheduler / protocol
+  -> control / registry_client / resident / trigger / scheduler / protocol
 scheduler
   -> runtime / identity / control / executor / recovery / observability / storage
 executor
@@ -338,7 +340,7 @@ protocol
   -> core / identity / observability
 resident
   -> trigger / scheduler / observability
-registry
+registry_client
   -> storage
 control
   -> storage
@@ -351,6 +353,7 @@ observability
 - `storage` 不依赖 `scheduler`
 - `runtime` 不依赖 `protocol`
 - `protocol` 不依赖 `scheduler`
+- `registry_client` 不依赖 `scheduler`
 
 ## 8. 分阶段实现映射
 
@@ -379,7 +382,7 @@ observability
 
 ### 阶段 5
 
-- `registry`
+- `registry_client`
 - `trigger`
 - `resident`
 
@@ -394,7 +397,7 @@ observability
 
 ## 10. 总结
 
-执行面代码边界应围绕：
+bee 运行时代码边界应围绕：
 
 - 任务事实
 - 协议事实

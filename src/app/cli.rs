@@ -5,6 +5,8 @@ use std::process::ExitCode;
 pub enum BinaryRole {
     Execution,
     Evolution,
+    /// Bee runtime binary (`honeycomb-bee`): same CLI as execution, but no args → interactive Code.
+    Bee,
 }
 
 impl BinaryRole {
@@ -12,6 +14,7 @@ impl BinaryRole {
         match self {
             Self::Execution => "honeycomb",
             Self::Evolution => "honeycomb-evolution",
+            Self::Bee => "honeycomb-bee",
         }
     }
 }
@@ -68,6 +71,8 @@ pub(crate) enum Command {
     SystemOverview,
     SystemAlerts,
     AuditTail,
+    /// Interactive Code session (REPL), Claude Code–style entry.
+    Code,
     FitnessRun,
     FitnessExplain,
     GovernancePlan,
@@ -108,12 +113,15 @@ pub fn run(role: BinaryRole) -> ExitCode {
 
 pub(crate) fn parse_command(role: BinaryRole, args: &[String]) -> Result<Command, String> {
     if args.is_empty() {
-        return Ok(Command::Help);
+        return match role {
+            BinaryRole::Bee => Ok(Command::Code),
+            _ => Ok(Command::Help),
+        };
     }
 
     let tokens: Vec<&str> = args.iter().map(String::as_str).collect();
     match role {
-        BinaryRole::Execution => parse_execution_command(&tokens),
+        BinaryRole::Execution | BinaryRole::Bee => parse_execution_command(&tokens),
         BinaryRole::Evolution => parse_evolution_command(&tokens),
     }
 }
@@ -121,6 +129,7 @@ pub(crate) fn parse_command(role: BinaryRole, args: &[String]) -> Result<Command
 fn parse_execution_command(tokens: &[&str]) -> Result<Command, String> {
     match tokens {
         ["help"] | ["--help"] | ["-h"] => Ok(Command::Help),
+        ["code"] | ["code", ..] => Ok(Command::Code),
         [group, command, ..] => match (*group, *command) {
             ("queen", "run") => Ok(Command::QueenRun),
             ("worker", "run") => Ok(Command::WorkerRun),
@@ -265,6 +274,7 @@ pub(crate) fn command_name(command: &Command) -> &'static str {
         Command::SystemOverview => "system overview",
         Command::SystemAlerts => "system alerts",
         Command::AuditTail => "audit tail",
+        Command::Code => "code",
         Command::FitnessRun => "fitness run",
         Command::FitnessExplain => "fitness explain",
         Command::GovernancePlan => "governance plan",
@@ -289,7 +299,7 @@ pub(crate) fn command_name(command: &Command) -> &'static str {
 
 pub(crate) fn execute_command(role: BinaryRole, command: Command, args: &[String]) -> ExitCode {
     match role {
-        BinaryRole::Execution => super::execution::handle(command, args),
+        BinaryRole::Execution | BinaryRole::Bee => super::execution::handle(command, args),
         BinaryRole::Evolution => super::evolution::handle(command, args),
     }
 }
@@ -316,8 +326,28 @@ pub(crate) fn has_flag(args: &[String], name: &str) -> bool {
 
 fn print_help(role: BinaryRole) {
     match role {
+        BinaryRole::Bee => {
+            println!("Honeycomb BEE — runtime (queen/worker, tasks, skills)");
+            println!();
+            println!("  With no arguments, starts an interactive Code session (like Claude Code).");
+            println!("  Same commands as `honeycomb`; use `honeycomb help` for the full list.");
+            println!();
+            println!("Primary:");
+            println!("  honeycomb-bee");
+            println!("  honeycomb-bee code [--skill-id ID] [--root PATH] [--use-recommended-impl] [--run-tools]");
+            println!();
+            println!("Environment:");
+            println!("  HONEYCOMB_CODE_SKILL   default skill for Code (default: code-assistant)");
+            println!("  HONEYCOMB_LLM_PROVIDER default provider selector (e.g. minimax)");
+            println!("  HONEYCOMB_LLM_API_KEY  API key for selected provider");
+            println!();
+        }
         BinaryRole::Execution => {
             println!("Usage: honeycomb <group> <command>");
+            println!();
+            println!("Interactive agent (Claude Code–style):");
+            println!("  honeycomb code [--skill-id ID] [--root PATH] [--use-recommended-impl] [--run-tools]");
+            println!("  (or run `honeycomb-bee` with no args; default code-assistant reads HONEYCOMB_LLM_* env)");
             println!();
             println!("Execution commands:");
             println!(
@@ -480,6 +510,18 @@ mod tests {
         let command = parse_command(BinaryRole::Execution, &args);
 
         assert_eq!(command, Ok(Command::TaskDemoFlow));
+    }
+
+    #[test]
+    fn parse_bee_empty_is_code_session() {
+        let args: Vec<String> = vec![];
+        assert_eq!(parse_command(BinaryRole::Bee, &args), Ok(Command::Code));
+    }
+
+    #[test]
+    fn parse_execution_code_command() {
+        let args = vec!["code".to_owned(), "--root".to_owned(), ".".to_owned()];
+        assert_eq!(parse_command(BinaryRole::Execution, &args), Ok(Command::Code));
     }
 
     #[test]

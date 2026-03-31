@@ -70,7 +70,7 @@
 建议至少区分：
 
 - `requester`：发起请求的系统或用户
-- `operator`：处理执行面介入问题
+- `operator`：处理 bee 运行时侧介入问题
 - `reviewer`：审批长期治理变更
 - `auditor`：只读查看证据与结论
 

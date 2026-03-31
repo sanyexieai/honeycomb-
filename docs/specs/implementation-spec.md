@@ -1,4 +1,4 @@
-﻿# 实现体与基因规范
+# 实现体与基因规范
 
 ## 1. 目标
 
@@ -109,7 +109,7 @@
 | `components` | 否 | object | 资源组件集合 | prompt、config 等 |
 | `strategy` | 否 | object | 运行策略 | 参数、模式、顺序等 |
 | `compatibility` | 是 | object | 协议兼容信息 | 防止错配 |
-| `constraints` | 否 | object | 成本和时延等约束 | 用于执行面控制 |
+| `constraints` | 否 | object | 成本和时延等约束 | 用于运行时配额与策略控制（bee） |
 | `origin` | 否 | object | 来源信息 | 手工、变异、导入等 |
 
 ## 7. 关键原则
@@ -123,7 +123,7 @@
 - 能力契约见 `hive-spec.md`
 - 最佳实践见 `practice-profile.md`
 - 进化系统见 `evolution-system.md`
-- 数据落地样例见 `execution-evolution-data-examples.md`
+- 数据落地样例见 `execution-evolution-data-examples.md`（Bee 运行时、能力中心与进化面）
 
 ## 9. 当前落地状态
 
@@ -159,7 +159,7 @@
 - 进化面的 `implementation usage` / `implementation hotspot` / `print_runtime_usage` 已开始优先使用运行态 `implementation_snapshot`
 - 进化面的 `implementation usage` 已扩展到同时统计 `runtime_task_count`、`active_task_count`、`runtime_assignment_count`、`execution_count`
 - `registry overview --with-details` 的 `implementation_usage` 已升级为多维摘要，不再只显示单一 `task_count`
-- 执行面的 `runtime overview` / `system overview` 也已升级为同一套多维 `implementation_usage` 口径
+- 蜂巢能力中心侧查询入口的 `runtime overview` / `system overview` 也已升级为同一套多维 `implementation_usage` 口径
 - `skill inspect/list/execute` 对实现体绑定关系的校验
 - `registry sync` / `registry overview` 对实现体对象的基础联动校验
 - `registry overview --with-details` 已可显示“近期常触发 guardrail 且仍被推荐或活跃使用”的 implementation hotspot 视图

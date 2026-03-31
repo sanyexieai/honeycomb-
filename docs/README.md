@@ -7,14 +7,17 @@
 - 可以推翻旧方案，不被已有原型绑定
 - 单任务内允许蜂后主导
 - 系统级不设唯一全局中心
-- 执行面与进化面拆成两个二进制
+- 三层分治：蜂运行时、蜂巢能力中心、生态进化中心
 - 角色、任务、技能、进化必须边界清晰
 - 逻辑隔离和物理隔离要同步考虑
 
-两个二进制：
+三个二进制：
 
-- `honeycomb`：执行面，负责蜂后、工蜂、任务运行、协议通信、任务状态与产物
-- `honeycomb-evolution`：进化面，负责评分、谱系、晋升、淘汰、最佳实践沉淀
+- `honeycomb-bee`：蜂运行时，负责蜂后/工蜂角色执行、LLM 推理、会话上下文与工具调用
+- `honeycomb`：蜂巢能力中心，负责全局能力资产、工具治理、最佳实现发布入口
+- `honeycomb-evolution`：生态进化中心，负责全量观测汇总、评分、谱系与治理决策
+
+**CLI 最小入口（类 Claude Code 会话）**：在仓库根目录执行 `cargo run --bin honeycomb-bee`（或安装后的 `honeycomb-bee`），无参数即进入交互式 Code REPL；等价地也可用 `cargo run --bin honeycomb -- code`。默认技能为 `code-assistant`，实现 `impl_code_default` 使用 **`minimax_chat`**（默认模型 `MiniMax-M2.5`，见 `registry/implementations/impl_code_default.json`）。推荐使用通用环境变量：`HONEYCOMB_LLM_PROVIDER=minimax`、`HONEYCOMB_LLM_API_KEY=...`、`HONEYCOMB_LLM_BASE_URL=https://api.minimaxi.com/v1`（写入仓库根目录 `.env` 或 `.env.local`，运行时自动加载）。系统提示词文件：`prompts/code-assistant.md`。可用 `HONEYCOMB_CODE_SKILL` 或 `code --skill-id …` 换用其它已注册技能。
 
 建议优先阅读顺序：
 
@@ -86,4 +89,22 @@
 - `specs/convergence-review-and-roadmap.md`
 - `specs/current-capability-audit-and-aggressive-convergence.md`
 
+三层激进重构：
+
+- `specs/bee-runtime-hive-ecology-architecture.md`
+- `specs/binary-and-deployment-layout.md`
+- `specs/migration-cutover-plan.md`
+- `specs/execution-state-machines-and-idempotency.md`（Bee 运行时状态机）
+
+记忆、上下文与 LLM 角色（目标与现状对齐）：
+
+- `specs/memory-context-and-llm-roles.md`
+
 未列入上文优先顺序但已存在的规格：`specs/runtime-and-traits.md`、`specs/process-executor.md`（与运行时/执行器实现细节相关）。
+
+## 文档口径（统一术语）
+
+- `honeycomb-bee`：bee 运行时（queen/worker、任务内 LLM 与证据）
+- `honeycomb`：蜂巢能力中心（长期能力资产、注册与工具治理）
+- `honeycomb-evolution`：生态进化中心（评分、谱系、治理与晋升）
+- 旧文档中的「执行面」一般指**运行时侧**；激进重构后拆为 **bee 运行时** 与 **能力中心**，以 `binary-and-deployment-layout.md` 为准。

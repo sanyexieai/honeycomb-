@@ -4,6 +4,7 @@ use super::super::task::validate_registry_refs;
 use super::super::*;
 use super::execution_record;
 use crate::executor::execute_skill_implementation;
+use serde_json::Value;
 
 pub(crate) fn handle_skill_inspect(args: &[String]) -> ExitCode {
     let skill_id = option_value(args, "--skill-id").unwrap_or("skill-demo");
@@ -554,5 +555,22 @@ pub(crate) fn handle_skill_execute(args: &[String]) -> ExitCode {
     println!("  child_tool_execution_count: {}", tool_execution_ids.len());
     println!("  status: {}", record.status.as_str());
     println!("  written_to: {}", path.display());
+
+    // Experimental: if the skill output is a tool_call JSON, parse it so that
+    // future versions can automatically dispatch tools based on the model plan.
+    if let Some(summary) = maybe_parse_tool_call(&record.output) {
+        println!("{summary}");
+    }
+
     ExitCode::SUCCESS
+}
+
+fn maybe_parse_tool_call(output: &str) -> Option<String> {
+    let value: Value = serde_json::from_str(output).ok()?;
+    if value.get("action")?.as_str()? != "tool_call" {
+        return None;
+    }
+    let tool_id = value.get("tool_id")?.as_str()?.to_owned();
+    let args = value.get("args").cloned().unwrap_or(Value::Null);
+    Some(format!("tool_call parsed: tool_id={tool_id} args={args}"))
 }
